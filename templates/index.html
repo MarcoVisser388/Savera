@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Savera — Watermeter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #06090f;
+      --panel: rgba(10,18,30,0.92);
+      --accent: #00d4ff;
+      --accent2: #00ff88;
+      --warn: #ff4444;
+      --text: #c8dff0;
+      --muted: #3a5a78;
+      --border: rgba(0,212,255,0.15);
+      --glow: 0 0 20px rgba(0,212,255,0.3);
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      background-image: radial-gradient(ellipse at 20% 20%, rgba(0,100,180,0.06) 0%, transparent 60%);
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Header */
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 56px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(6,9,15,0.95); backdrop-filter: blur(20px);
+    }
+    .logo { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 900; color: var(--accent); letter-spacing: 4px; text-shadow: var(--glow); }
+    .logo span { color: var(--accent2); }
+    .header-right { display: flex; gap: 16px; align-items: center; font-size: 12px; color: var(--muted); }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: blink 2s infinite; display: inline-block; margin-right: 6px; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+    .clock { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--accent); }
+
+    /* Main */
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+
+    h2 { font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 3px; color: var(--accent); margin-bottom: 20px; text-transform: uppercase; }
+
+    /* Stats grid */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .stat-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px;
+      backdrop-filter: blur(10px);
+      transition: border-color .3s;
+    }
+    .stat-card:hover { border-color: var(--accent); box-shadow: var(--glow); }
+    .stat-label { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+    .stat-value { font-family: 'Orbitron', monospace; font-size: 32px; font-weight: 700; color: var(--accent); }
+    .stat-value.green { color: var(--accent2); }
+    .stat-unit { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .stat-sub { font-size: 12px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+    /* Live indicator */
+    .live-card {
+      background: var(--panel); border: 1px solid var(--accent);
+      border-radius: 10px; padding: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--glow);
+      margin-bottom: 30px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .live-title { font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 2px; color: var(--accent); }
+    .live-value { font-family: 'Orbitron', monospace; font-size: 42px; font-weight: 900; color: var(--accent2); text-shadow: 0 0 20px rgba(0,255,136,0.4); }
+    .live-unit { font-size: 14px; color: var(--muted); }
+    .live-meta { display: flex; gap: 24px; }
+    .live-meta-item { text-align: center; }
+    .live-meta-val { font-family: 'Orbitron', monospace; font-size: 18px; color: var(--text); }
+    .live-meta-lbl { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+    /* Chart */
+    .chart-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 30px;
+    }
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* Footer */
+    footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SAVE<span>RA</span></div>
+  <div class="header-right">
+    <span><span class="live-dot"></span>LIVE DATA</span>
+    <span class="clock" id="clock">00:00:00</span>
+  </div>
+</header>
+
+<main>
+  <h2>💧 Watermeter — Live Dashboard</h2>
+
+  <!-- Live meting -->
+  <div class="live-card">
+    <div>
+      <div class="live-title"><span class="live-dot"></span>LIVE METING</div>
+      <div class="live-value" id="live-lpm">--</div>
+      <div class="live-unit">liter per minuut</div>
+    </div>
+    <div class="live-meta">
+      <div class="live-meta-item">
+        <div class="live-meta-val" id="live-lpu">--</div>
+        <div class="live-meta-lbl">L/uur</div>
+      </div>
+      <div class="live-meta-item">
+        <div class="live-meta-val" id="live-kosten">--</div>
+        <div class="live-meta-lbl">€/uur</div>
+      </div>
+      <div class="live-meta-item">
+        <div class="live-meta-val" id="live-tijd">--</div>
+        <div class="live-meta-lbl">Laatste meting</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Verbruik vandaag</div>
+      <div class="stat-value" id="stat-liters">--</div>
+      <div class="stat-unit">liter</div>
+      <div class="stat-sub" id="stat-kosten-dag">€ --</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Gemiddeld per minuut</div>
+      <div class="stat-value green" id="stat-gem">--</div>
+      <div class="stat-unit">liter/min</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Prijs per m³</div>
+      <div class="stat-value green">€1,45</div>
+      <div class="stat-unit">per 1000 liter</div>
+      <div class="stat-sub">Tarief 2026</div>
+    </div>
+  </div>
+
+  <!-- Weekgrafiek -->
+  <div class="chart-card">
+    <h2>📊 Verbruik afgelopen 7 dagen</h2>
+    <div class="chart-wrap">
+      <canvas id="weekChart"></canvas>
+    </div>
+  </div>
+</main>
+
+<footer>SAVERA OS · Watermeter Module v1.0 · Alle data lokaal opgeslagen</footer>
+
+<script>
+  // Clock
+  setInterval(() => {
+    const n = new Date();
+    document.getElementById('clock').textContent =
+      String(n.getHours()).padStart(2,'0') + ':' +
+      String(n.getMinutes()).padStart(2,'0') + ':' +
+      String(n.getSeconds()).padStart(2,'0');
+  }, 1000);
+
+  // Live data ophalen
+  async function haalLiveData() {
+    try {
+      const res = await fetch('/api/watermeter/live');
+      const data = await res.json();
+      document.getElementById('live-lpm').textContent = data.liters_per_minuut;
+      document.getElementById('live-lpu').textContent = data.liters_per_uur;
+      document.getElementById('live-kosten').textContent = '€' + data.kosten_per_uur;
+      document.getElementById('live-tijd').textContent = data.timestamp;
+    } catch(e) { console.error(e); }
+  }
+
+  // Vandaag data ophalen
+  async function haalVandaag() {
+    try {
+      const res = await fetch('/api/watermeter/vandaag');
+      const data = await res.json();
+      document.getElementById('stat-liters').textContent = data.liters;
+      document.getElementById('stat-kosten-dag').textContent = '€' + data.kosten + ' vandaag';
+      document.getElementById('stat-gem').textContent = data.gemiddeld_per_minuut;
+    } catch(e) { console.error(e); }
+  }
+
+  // Weekgrafiek
+  async function laadWeekGrafiek() {
+    try {
+      const res = await fetch('/api/watermeter/week');
+      const data = await res.json();
+
+      const ctx = document.getElementById('weekChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.dagen,
+          datasets: [{
+            label: 'Liter per dag',
+            data: data.liters,
+            backgroundColor: 'rgba(0, 212, 255, 0.2)',
+            borderColor: 'rgba(0, 212, 255, 0.8)',
+            borderWidth: 2,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#3a5a78', font: { family: 'Rajdhani' } } }
+          },
+          scales: {
+            x: { ticks: { color: '#3a5a78' }, grid: { color: 'rgba(0,212,255,0.05)' } },
+            y: { ticks: { color: '#3a5a78' }, grid: { color: 'rgba(0,212,255,0.05)' } }
+          }
+        }
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  // Start
+  haalLiveData();
+  haalVandaag();
+  laadWeekGrafiek();
+  setInterval(haalLiveData, 3000); // Elke 3 seconden live update
+  setInterval(haalVandaag, 30000); // Elke 30 seconden vandaag updaten
+</script>
+</body>
+</html>

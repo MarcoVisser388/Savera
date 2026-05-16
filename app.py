@@ -1,0 +1,173 @@
+from flask import Flask, render_template, jsonify
+import sqlite3
+import random
+from datetime import datetime, timedelta
+import config
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = config.SECRET_KEY
+
+
+# ── Database setup ──────────────────────────────────────────
+def get_db():
+    conn = sqlite3.connect(config.DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Watermeter tabel
+    cursor.execute('''
+                   CREATE TABLE IF NOT EXISTS watermeter
+                   (
+                       id
+                       INTEGER
+                       PRIMARY
+                       KEY
+                       AUTOINCREMENT,
+                       timestamp
+                       DATETIME
+                       DEFAULT
+                       CURRENT_TIMESTAMP,
+                       liters
+                       REAL
+                       NOT
+                       NULL,
+                       liters_per_minuut
+                       REAL
+                       NOT
+                       NULL
+                   )
+                   ''')
+
+    conn.commit()
+    conn.close()
+    print("Database aangemaakt!")
+
+
+# ── Nep data generator ──────────────────────────────────────────
+def genereer_nep_data():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Kijk of er al data is
+    cursor.execute("SELECT COUNT(*) FROM watermeter")
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        print("Nep data genereren...")
+        now = datetime.now()
+        totaal_liters = 0
+
+        # Genereer data voor de afgelopen 7 dagen per uur
+        for dag in range(7, 0, -1):
+            for uur in range(24):
+                timestamp = now - timedelta(days=dag, hours=uur)
+
+                # Realistisch patroon — meer verbruik ochtend en avond
+                if 7 <= uur <= 9:
+                    liters_per_min = round(random.uniform(1.5, 4.0), 2)
+                elif 18 <= uur <= 22:
+                    liters_per_min = round(random.uniform(1.0, 3.5), 2)
+                elif 0 <= uur <= 6:
+                    liters_per_min = round(random.uniform(0.0, 0.2), 2)
+                else:
+                    liters_per_min = round(random.uniform(0.2, 1.5), 2)
+
+                liters = round(liters_per_min * 60, 2)
+                totaal_liters += liters
+
+                cursor.execute('''
+                               INSERT INTO watermeter (timestamp, liters, liters_per_minuut)
+                               VALUES (?, ?, ?)
+                               ''', (timestamp, totaal_liters, liters_per_min))
+
+        conn.commit()
+        print(f"Nep data gegenereerd!")
+
+    conn.close()
+
+
+# ── Routes ──────────────────────────────────────────
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/api/watermeter/live')
+def watermeter_live():
+    # Simuleer live meting
+    liters_per_minuut = round(random.uniform(0.5, 3.0), 2)
+    return jsonify({
+        'liters_per_minuut': liters_per_minuut,
+        'liters_per_uur': round(liters_per_minuut * 60, 2),
+        'kosten_per_uur': round((liters_per_minuut * 60 / 1000) * config.WATER_PRIJS_PER_M3, 4),
+        'timestamp': datetime.now().strftime('%H:%M:%S')
+    })
+
+
+@app.route('/api/watermeter/vandaag')
+def watermeter_vandaag():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    vandaag = datetime.now().date()
+    cursor.execute('''
+                   SELECT SUM(liters) as totaal, AVG(liters_per_minuut) as gemiddeld
+                   FROM watermeter
+                   WHERE DATE (timestamp) = ?
+                   ''', (vandaag,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    totaal = round(row['totaal'] or 0, 1)
+    kosten = round((totaal / 1000) * config.WATER_PRIJS_PER_M3, 2)
+
+    return jsonify({
+        'liters': totaal,
+        'kosten': kosten,
+        'gemiddeld_per_minuut': round(row['gemiddeld'] or 0, 2)
+    })
+
+
+@app.route('/api/watermeter/week')
+def watermeter_week():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+                   SELECT DATE (timestamp) as dag, SUM (liters) as totaal
+                   FROM watermeter
+                   WHERE timestamp >= datetime('now', '-7 days')
+                   GROUP BY DATE (timestamp)
+                   ORDER BY dag ASC
+                   ''')
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    dagen = []
+    waardes = []
+    kosten = []
+
+    for row in rows:
+        dagen.append(row['dag'])
+        waardes.append(round(row['totaal'], 1))
+        kosten.append(round((row['totaal'] / 1000) * config.WATER_PRIJS_PER_M3, 2))
+
+    return jsonify({
+        'dagen': dagen,
+        'liters': waardes,
+        'kosten': kosten
+    })
+
+
+# ── Start ──────────────────────────────────────────
+if __name__ == '__main__':
+    init_db()
+    genereer_nep_data()
+    app.run(debug=config.DEBUG, host='0.0.0.0', port=5000)

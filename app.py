@@ -3,6 +3,9 @@ import sqlite3
 import random
 from datetime import datetime, timedelta
 import config
+import paho.mqtt.client as mqtt_client
+import json
+import threading
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
@@ -131,9 +134,45 @@ def watermeter_week():
         'kosten': kosten
     })
 
+@app.route('/water')
+def water():
+    return render_template('water.html')
+
+# ── MQTT ──────────────────────────────────────────
+def on_mqtt_message(client, userdata, message):
+    try:
+        data = json.loads(message.payload.decode())
+        liters_per_minuut = data.get('liters_per_minuut', 0)
+        totaal_liters = data.get('totaal_liters', 0)
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO watermeter (liters, liters_per_minuut)
+            VALUES (?, ?)
+        ''', (totaal_liters, liters_per_minuut))
+        conn.commit()
+        conn.close()
+        print(f"Watermeter data ontvangen: {liters_per_minuut} L/min, totaal: {totaal_liters} L")
+    except Exception as e:
+        print(f"MQTT fout: {e}")
+
+
+def start_mqtt():
+    client = mqtt_client.Client()
+    client.on_message = on_mqtt_message
+    client.connect(config.MQTT_BROKER, config.MQTT_PORT, 60)
+    client.subscribe("savera/watermeter")
+    client.loop_forever()
+
+
+def start_mqtt_thread():
+    thread = threading.Thread(target=start_mqtt, daemon=True)
+    thread.start()
 
 # ── Start ──────────────────────────────────────────
 if __name__ == '__main__':
     init_db()
     genereer_nep_data()
+    start_mqtt_thread()
     app.run(debug=config.DEBUG, host='0.0.0.0', port=5000)

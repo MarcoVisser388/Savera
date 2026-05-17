@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Savera — Waterverbruik</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #141414; --bg2: #1a1a1a; --bg3: #222;
+  --accent: #e8b84b; --accent2: #4caf82; --warn: #e05c5c;
+  --orange: #e8914b; --blue: #4b9fe8;
+  --text: #fff; --muted: rgba(255,255,255,0.35);
+  --border: rgba(255,255,255,0.07);
+}
+body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); min-height: 100vh; display: grid; grid-template-rows: 52px 1fr; }
+
+/* Header */
+header { background: var(--bg2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--border); }
+.logo { font-size: 15px; font-weight: 700; letter-spacing: 3px; }
+.logo span { color: var(--accent); }
+.hright { display: flex; align-items: center; gap: 14px; }
+.live-pill { background: rgba(255,255,255,0.07); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.ldot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+/* Layout */
+.main { display: grid; grid-template-columns: 52px 1fr; overflow: hidden; height: 100%; }
+
+/* Left nav */
+.leftnav { background: var(--bg2); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; border-right: 1px solid var(--border); }
+.nico { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); cursor: pointer; transition: all .2s; }
+.nico:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.nico.on { background: rgba(232,184,75,0.12); color: var(--accent); }
+.spacer { flex: 1; }
+
+/* Content */
+.content { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* Page title */
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.page-title .icon { font-size: 24px; }
+.page-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* Lekkage alert */
+.lekkage-alert { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+.lekkage-icon { font-size: 24px; flex-shrink: 0; }
+.lekkage-txt { font-size: 13px; font-weight: 600; color: var(--warn); }
+.lekkage-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.lekkage-ok { background: rgba(76,175,130,0.08); border-color: rgba(76,175,130,0.25); }
+.lekkage-ok .lekkage-txt { color: var(--accent2); }
+
+/* Stats row */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.stat-val { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; }
+.stat-val.blue { color: var(--blue); }
+.stat-val.green { color: var(--accent2); }
+.stat-val.orange { color: var(--orange); }
+.stat-unit { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.stat-change { font-size: 11px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 4px; }
+.stat-change.up { color: var(--warn); }
+.stat-change.down { color: var(--accent2); }
+
+/* Meter stand */
+.meter-card { background: var(--bg2); border: 1px solid var(--accent); border-radius: 12px; padding: 18px; display: flex; align-items: center; justify-content: space-between; }
+.meter-left {}
+.meter-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+.meter-val { font-size: 36px; font-weight: 700; color: var(--text); letter-spacing: -1px; }
+.meter-unit { font-size: 14px; color: var(--muted); margin-left: 4px; }
+.meter-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.meter-right { text-align: right; }
+.meter-info { font-size: 11px; color: var(--muted); line-height: 1.8; }
+
+/* Chart card */
+.chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.chart-title { font-size: 14px; font-weight: 600; }
+.chart-controls { display: flex; align-items: center; gap: 8px; }
+.period-tabs { display: flex; background: var(--bg3); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+.ptab { padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s; }
+.ptab.on { background: rgba(232,184,75,0.15); color: var(--accent); }
+.nav-arrows { display: flex; gap: 4px; }
+.arrow-btn { width: 30px; height: 30px; border-radius: 7px; background: var(--bg3); border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all .2s; }
+.arrow-btn:hover { border-color: var(--accent); color: var(--accent); }
+.chart-period-label { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 12px; }
+.chart-wrap { position: relative; height: 240px; }
+
+/* Statistieken */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.stat-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.sb-title { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+.sb-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+.sb-row:last-child { border-bottom: none; }
+.sb-label { color: var(--muted); }
+.sb-val { font-weight: 600; }
+.sb-val.green { color: var(--accent2); }
+.sb-val.red { color: var(--warn); }
+.sb-val.blue { color: var(--blue); }
+
+/* Kosten card */
+.kosten-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.kosten-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 12px; }
+.kosten-item { background: var(--bg3); border-radius: 9px; padding: 12px; text-align: center; }
+.ki-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.ki-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+.ki-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* Voorspelling */
+.voorspelling { background: rgba(75,159,232,0.08); border: 1px solid rgba(75,159,232,0.2); border-radius: 12px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; }
+.vl { font-size: 13px; font-weight: 600; color: var(--blue); }
+.vl-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.vr { font-size: 28px; font-weight: 700; color: var(--blue); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SAVE<span>RA</span></div>
+  <div class="hright">
+    <div class="live-pill"><div class="ldot"></div> Live · 14 sensoren</div>
+    <div style="font-size:13px;color:var(--muted)" id="clk">00:00</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Left nav -->
+  <nav class="leftnav">
+    <div class="nico" title="Dashboard" onclick="window.location.href='/'">🏠</div>
+    <div class="nico on" title="Water">💧</div>
+    <div class="nico" title="Energie">⚡</div>
+    <div class="nico" title="Klimaat">🌡️</div>
+    <div class="nico" title="Beveiliging">🔒</div>
+    <div class="nico" title="Camera">📷</div>
+    <div class="nico" title="Planten">🌿</div>
+    <div class="spacer"></div>
+    <div class="nico" title="Instellingen">⚙️</div>
+  </nav>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title"><span class="icon">💧</span> Waterverbruik</div>
+        <div class="page-sub">Realtime inzicht in uw waterverbruik, kosten en meterstand</div>
+      </div>
+    </div>
+
+    <!-- Lekkage melder -->
+    <div class="lekkage-alert lekkage-ok">
+      <div class="lekkage-icon">🛡️</div>
+      <div>
+        <div class="lekkage-txt">Geen lekkage gedetecteerd</div>
+        <div class="lekkage-sub">Lekkage melder actief · Controleert verbruik tussen 01:00 en 05:00 · Drempelwaarde: 10 liter per uur</div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Live verbruik</div>
+        <div class="stat-val blue">1.8</div>
+        <div class="stat-unit">liter per minuut</div>
+        <div class="stat-change">⚡ 108 liter per uur</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Vandaag</div>
+        <div class="stat-val">84</div>
+        <div class="stat-unit">liter</div>
+        <div class="stat-change down">↓ 12% minder dan gisteren</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Deze maand</div>
+        <div class="stat-val orange">2.840</div>
+        <div class="stat-unit">liter</div>
+        <div class="stat-change up">↑ 8% meer dan vorige maand</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dit jaar</div>
+        <div class="stat-val green">14.220</div>
+        <div class="stat-unit">liter</div>
+        <div class="stat-change down">↓ 3% minder dan vorig jaar</div>
+      </div>
+    </div>
+
+    <!-- Meterstand -->
+    <div class="meter-card">
+      <div class="meter-left">
+        <div class="meter-label">⚙️ Waterschap meterstand</div>
+        <div class="meter-val">1.842<span class="meter-unit">m³</span></div>
+        <div class="meter-sub">Laatste update: vandaag 18:02 · Bijgehouden sinds 1 jan 2026</div>
+      </div>
+      <div class="meter-right">
+        <div class="meter-info">
+          Vorige aflezing: 1.828 m³<br>
+          Verbruik sinds aflezing: 14 m³<br>
+          Volgende aflezing: 1 juni 2026<br>
+          Verwacht verbruik: 18 m³
+        </div>
+      </div>
+    </div>
+
+    <!-- Grafiek -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Verbruik over tijd</div>
+        <div class="chart-controls">
+          <div class="period-tabs">
+            <div class="ptab" onclick="setPeriod('dag',this)">Dag</div>
+            <div class="ptab on" onclick="setPeriod('week',this)">Week</div>
+            <div class="ptab" onclick="setPeriod('maand',this)">Maand</div>
+            <div class="ptab" onclick="setPeriod('jaar',this)">Jaar</div>
+          </div>
+          <div class="nav-arrows">
+            <div class="arrow-btn" onclick="navigate(-1)">←</div>
+            <div class="arrow-btn" onclick="navigate(1)">→</div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-period-label" id="periodLabel">Week 20 · 11 mei – 17 mei 2026</div>
+      <div class="chart-wrap">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Statistieken grid -->
+    <div class="stats-grid">
+      <div class="stat-block">
+        <div class="sb-title">📅 Deze week</div>
+        <div class="sb-row"><span class="sb-label">Meeste verbruik</span><span class="sb-val red">Donderdag · 142L</span></div>
+        <div class="sb-row"><span class="sb-label">Minste verbruik</span><span class="sb-val green">Zaterdag · 61L</span></div>
+        <div class="sb-row"><span class="sb-label">Gemiddeld per dag</span><span class="sb-val blue">94L</span></div>
+        <div class="sb-row"><span class="sb-label">Totaal deze week</span><span class="sb-val">658L</span></div>
+        <div class="sb-row"><span class="sb-label">vs vorige week</span><span class="sb-val green">↓ 6%</span></div>
+      </div>
+      <div class="stat-block">
+        <div class="sb-title">📆 Deze maand</div>
+        <div class="sb-row"><span class="sb-label">Meeste verbruik</span><span class="sb-val red">8 mei · 168L</span></div>
+        <div class="sb-row"><span class="sb-label">Minste verbruik</span><span class="sb-val green">3 mei · 54L</span></div>
+        <div class="sb-row"><span class="sb-label">Gemiddeld per dag</span><span class="sb-val blue">102L</span></div>
+        <div class="sb-row"><span class="sb-label">Totaal deze maand</span><span class="sb-val">2.840L</span></div>
+        <div class="sb-row"><span class="sb-label">vs vorige maand</span><span class="sb-val red">↑ 8%</span></div>
+      </div>
+      <div class="stat-block">
+        <div class="sb-title">📊 Dit jaar</div>
+        <div class="sb-row"><span class="sb-label">Drukste maand</span><span class="sb-val red">Maart · 3.240L</span></div>
+        <div class="sb-row"><span class="sb-label">Rustigste maand</span><span class="sb-val green">Februari · 2.180L</span></div>
+        <div class="sb-row"><span class="sb-label">Gemiddeld per maand</span><span class="sb-val blue">2.844L</span></div>
+        <div class="sb-row"><span class="sb-label">Totaal dit jaar</span><span class="sb-val">14.220L</span></div>
+        <div class="sb-row"><span class="sb-label">vs vorig jaar</span><span class="sb-val green">↓ 3%</span></div>
+      </div>
+    </div>
+
+    <!-- Kosten -->
+    <div class="kosten-card">
+      <div class="chart-title">💶 Kosten overzicht</div>
+      <div class="kosten-grid">
+        <div class="kosten-item">
+          <div class="ki-label">Vandaag</div>
+          <div class="ki-val">€ 0,12</div>
+          <div class="ki-sub">84 liter</div>
+        </div>
+        <div class="kosten-item">
+          <div class="ki-label">Deze week</div>
+          <div class="ki-val">€ 0,95</div>
+          <div class="ki-sub">658 liter</div>
+        </div>
+        <div class="kosten-item">
+          <div class="ki-label">Deze maand</div>
+          <div class="ki-val">€ 4,12</div>
+          <div class="ki-sub">2.840 liter</div>
+        </div>
+        <div class="kosten-item">
+          <div class="ki-label">Dit jaar</div>
+          <div class="ki-val">€ 20,62</div>
+          <div class="ki-sub">14.220 liter</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voorspelling -->
+    <div class="voorspelling">
+      <div>
+        <div class="vl">📈 Verwachte maandrekening</div>
+        <div class="vl-sub">Op basis van uw gemiddeld dagverbruik van 102 liter · Tarief € 1,45 per m³</div>
+      </div>
+      <div class="vr">€ 4,43</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Clock
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clk').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}, 1000);
+
+// Nav
+document.querySelectorAll('.nico').forEach(n => n.addEventListener('click', () => {
+  document.querySelectorAll('.nico').forEach(x => x.classList.remove('on'));
+  n.classList.add('on');
+}));
+
+// Chart data per periode
+const chartData = {
+  dag: {
+    labels: ['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00','22:00'],
+    data: [0,0,0,2,18,12,8,6,10,14,18,16],
+    label: 'Vandaag · 17 mei 2026'
+  },
+  week: {
+    labels: ['Ma','Di','Wo','Do','Vr','Za','Zo'],
+    data: [88, 102, 95, 142, 110, 61, 84],
+    label: 'Week 20 · 11 mei – 17 mei 2026'
+  },
+  maand: {
+    labels: ['Week 1','Week 2','Week 3','Week 4'],
+    data: [620, 710, 840, 670],
+    label: 'Mei 2026'
+  },
+  jaar: {
+    labels: ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'],
+    data: [2400, 2180, 3240, 2680, 2840, 0, 0, 0, 0, 0, 0, 0],
+    label: '2026'
+  }
+};
+
+let huidigePeriode = 'week';
+let ctx, myChart;
+
+function buildChart(periode) {
+  const d = chartData[periode];
+  document.getElementById('periodLabel').textContent = d.label;
+
+  if (myChart) myChart.destroy();
+
+  ctx = document.getElementById('mainChart').getContext('2d');
+  myChart = new Chart(ctx, {
+    type: periode === 'dag' ? 'line' : 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Liter',
+        data: d.data,
+        backgroundColor: periode === 'dag' ? 'rgba(75,159,232,0.15)' : 'rgba(232,184,75,0.2)',
+        borderColor: periode === 'dag' ? 'rgba(75,159,232,0.8)' : 'rgba(232,184,75,0.7)',
+        borderWidth: periode === 'dag' ? 2 : 1.5,
+        borderRadius: periode === 'dag' ? 0 : 5,
+        fill: periode === 'dag',
+        tension: 0.4,
+        pointBackgroundColor: 'rgba(75,159,232,1)',
+        pointRadius: periode === 'dag' ? 3 : 0,
+        hoverBackgroundColor: periode === 'dag' ? 'rgba(75,159,232,0.3)' : '#e8b84b',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(20,20,20,0.95)',
+          titleColor: 'rgba(255,255,255,0.5)',
+          bodyColor: '#fff',
+          borderColor: 'rgba(255,255,255,0.07)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ctx.parsed.y + ' liter · € ' + (ctx.parsed.y / 1000 * 1.45).toFixed(2)
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { display: false }
+        },
+        y: {
+          ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function setPeriod(p, el) {
+  document.querySelectorAll('.ptab').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  huidigePeriode = p;
+  buildChart(p);
+}
+
+function navigate(dir) {
+  // Pijltjes navigatie - later koppelen aan echte data
+  const labels = {
+    dag: ['Gisteren','Eergisteren'],
+    week: ['Week 19','Week 18'],
+    maand: ['April 2026','Maart 2026'],
+    jaar: ['2025','2024']
+  };
+  console.log('Navigeren:', dir > 0 ? 'vooruit' : 'terug');
+}
+
+buildChart('week');
+</script>
+</body>
+</html>

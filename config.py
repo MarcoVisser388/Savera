@@ -14,3 +14,7 @@ WATER_PRIJS_PER_M3 = 1.45
 
 # Energie prijs per kWh
 ENERGIE_PRIJS_PER_KWH = 0.32
+
+# MQTT
+MQTT_BROKER = '192.168.1.90'  # jouw Pi IP
+MQTT_PORT = 1883

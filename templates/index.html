@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Savera 3D Huis</title>
+<title>Savera</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -14,9 +14,10 @@
   --orange: #e8914b; --text: #fff; --muted: rgba(255,255,255,0.35);
   --border: rgba(255,255,255,0.07);
 }
+
 body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); height: 100vh; overflow: hidden; display: grid; grid-template-rows: 52px 1fr; }
 
-/* Header */
+/* ── Header ── */
 header { background: var(--bg2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--border); }
 .logo { font-size: 15px; font-weight: 700; letter-spacing: 3px; }
 .logo span { color: var(--accent); }
@@ -26,30 +27,24 @@ header { background: var(--bg2); display: flex; align-items: center; justify-con
 @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
 .htime { font-size: 13px; color: var(--muted); }
 
-/* Main */
-.main { display: grid; grid-template-columns: 52px 1fr 280px; overflow: hidden; }
+/* ── Main layout ── */
+.main { display: grid; grid-template-columns: 52px 1fr 280px; overflow: hidden; height: 100%; }
 
-/* Left nav */
-.leftnav { background: var(--bg2); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; border-right: 1px solid var(--border); }
-.nico { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); cursor: pointer; transition: all .2s; }
+/* ── Left nav ── */
+.leftnav { background: var(--bg2); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; border-right: 1px solid var(--border); z-index: 10; }
+.nico { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--muted); cursor: pointer; transition: all .2s; }
 .nico:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 .nico.on { background: rgba(232,184,75,0.12); color: var(--accent); }
 .spacer { flex: 1; }
 
-/* Canvas */
+/* ── Canvas ── */
 .canvas-wrap { position: relative; overflow: hidden; background: var(--bg); }
 canvas { display: block; width: 100% !important; height: 100% !important; }
-
-/* Overlay UI on canvas */
 .canvas-title { position: absolute; top: 14px; left: 16px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
-
 .floor-tabs { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(20,20,20,0.9); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .ftab { padding: 6px 14px; font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--muted); cursor: pointer; transition: all .2s; }
 .ftab.on { background: rgba(232,184,75,0.12); color: var(--accent); }
-
 .hint { position: absolute; bottom: 14px; right: 14px; font-size: 10px; color: rgba(255,255,255,0.2); text-align: right; line-height: 1.8; }
-
-/* Sensor legend */
 .legend { position: absolute; bottom: 14px; left: 14px; display: flex; flex-direction: column; gap: 5px; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -58,13 +53,7 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .legend-dot.o { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
 
 /* Sensor tooltip */
-.sensor-tip {
-  position: absolute; pointer-events: none;
-  background: rgba(16,16,16,0.96); backdrop-filter: blur(12px);
-  border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 14px; opacity: 0; transition: opacity .15s;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 160px; z-index: 50;
-}
+.sensor-tip { position: absolute; pointer-events: none; background: rgba(16,16,16,0.96); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; opacity: 0; transition: opacity .15s; box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 160px; z-index: 50; }
 .sensor-tip.show { opacity: 1; }
 .st-name { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
 .st-name.g { color: var(--accent2); }
@@ -74,16 +63,13 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .st-l { color: var(--muted); }
 .st-v { font-weight: 600; }
 
-/* Right panel */
+/* ── Right panel (desktop) ── */
 .rightpanel { background: var(--bg2); border-left: 1px solid var(--border); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .panel-title { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; }
-
 .card { background: var(--bg3); border-radius: 12px; padding: 14px; border: 1px solid var(--border); }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .card-title { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
 .card-more { font-size: 11px; color: var(--accent); font-weight: 600; cursor: pointer; }
-
-/* Alert list */
 .alert-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; border: 1px solid; margin-bottom: 6px; cursor: pointer; transition: opacity .2s; }
 .alert-item:last-child { margin-bottom: 0; }
 .alert-item:hover { opacity: 0.8; }
@@ -96,8 +82,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .at.o { color: var(--orange); }
 .at.g { color: var(--accent2); }
 .as { font-size: 11px; color: var(--muted); margin-top: 1px; }
-
-/* Stats */
 .bigstat { font-size: 30px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
 .bigstat span { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 4px; }
 .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
@@ -106,8 +90,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .mini-stat:not(:last-child) { border-right: 1px solid var(--border); }
 .msv { font-size: 13px; font-weight: 700; }
 .msl { font-size: 9px; color: var(--muted); margin-top: 2px; }
-
-/* Toggles */
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
 .tl { display: flex; align-items: center; gap: 8px; }
@@ -118,8 +100,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .toggle.on { background: var(--accent); }
 .toggle::after { content:''; position:absolute; width:13px; height:13px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left .2s; }
 .toggle.on::after { left:17px; }
-
-/* Sensor rows */
 .sensor-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .sensor-row:last-child { border-bottom: none; }
 .sl { display: flex; align-items: center; gap: 7px; }
@@ -137,19 +117,84 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
 
-/* Mobile FAB */
-@media (max-width: 768px) {
-  .main { grid-template-columns: 1fr; }
-  .leftnav, .rightpanel { display: none; }
-  .m-fab { display: flex; }
-  .m-drawer { display: flex; }
+/* ── Mobile FAB knop (vierkant rechtsonder) ── */
+.m-fab {
+  display: none;
+  position: absolute;
+  bottom: 20px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--accent);
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(232,184,75,0.5);
+  z-index: 60;
+  border: none;
+}
+.m-fab-badge {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--warn);
+  color: #fff; font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
 }
 
-.m-fab { display: none; position: absolute; bottom: 20px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--accent); align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 20px rgba(232,184,75,0.4); z-index: 50; }
-.m-fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.m-drawer { display: none; position: absolute; bottom: 0; left: 0; right: 0; background: var(--bg2); border-radius: 20px 20px 0 0; transform: translateY(100%); transition: transform .35s cubic-bezier(0.32,0.72,0,1); z-index: 40; max-height: 75%; overflow-y: auto; flex-direction: column; }
-.m-drawer.open { transform: translateY(0); }
-.m-handle { width: 32px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; margin: 10px auto 14px; }
+/* ── Mobile slide-in panel van rechts ── */
+.m-panel {
+  display: none;
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 280px;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(0.32,0.72,0,1);
+  z-index: 55;
+  overflow-y: auto;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+}
+.m-panel.open { transform: translateX(0); }
+.m-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.m-panel-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.m-panel-close {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: rgba(255,255,255,0.07);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: pointer; color: var(--muted);
+}
+
+/* Donkere overlay achter panel */
+.m-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 54;
+}
+.m-overlay.show { display: block; }
+
+/* ── Responsive: mobiel ── */
+@media (max-width: 768px) {
+  .main { grid-template-columns: 64px 1fr; }
+  .leftnav { width: 64px; padding: 12px 0; gap: 10px; }
+  .nico { width: 48px !important; height: 48px !important; font-size: 24px !important; border-radius: 12px; }
+  .rightpanel { display: none; }
+  .m-fab { display: flex; }
+  .m-panel { display: flex; }
+  .hint { display: none; }
+  .floor-tabs .ftab { padding: 5px 10px; font-size: 9px; }
+}
 </style>
 </head>
 <body>
@@ -166,15 +211,15 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 
   <!-- Left nav -->
   <nav class="leftnav">
-    <div class="nico on">🏠</div>
-    <div class="nico">💧</div>
-    <div class="nico">⚡</div>
-    <div class="nico">🌡️</div>
-    <div class="nico">🔒</div>
-    <div class="nico">📷</div>
-    <div class="nico">🌿</div>
+    <div class="nico on" title="Dashboard">🏠</div>
+    <div class="nico" title="Water">💧</div>
+    <div class="nico" title="Energie">⚡</div>
+    <div class="nico" title="Klimaat">🌡️</div>
+    <div class="nico" title="Beveiliging">🔒</div>
+    <div class="nico" title="Camera">📷</div>
+    <div class="nico" title="Planten">🌿</div>
     <div class="spacer"></div>
-    <div class="nico">⚙️</div>
+    <div class="nico" title="Instellingen">⚙️</div>
   </nav>
 
   <!-- 3D Canvas -->
@@ -203,37 +248,79 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
       <div class="st-row"><span class="st-l">Sinds</span><span class="st-v" id="st-time">—</span></div>
     </div>
 
-    <!-- Mobile FAB -->
-    <div class="m-fab" onclick="toggleDrawer()">
-      📊
+    <!-- Mobile FAB knop -->
+    <div class="m-fab" id="mFab" onclick="togglePanel()">
+      ☰
       <div class="m-fab-badge">2</div>
     </div>
 
-    <!-- Mobile drawer -->
-    <div class="m-drawer" id="mdrawer">
-      <div class="m-handle"></div>
-      <div style="padding:0 14px 14px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between">
-          Widgets <span style="color:var(--muted);cursor:pointer" onclick="toggleDrawer()">✕</span>
+    <!-- Mobile overlay -->
+    <div class="m-overlay" id="mOverlay" onclick="togglePanel()"></div>
+
+    <!-- Mobile slide-in panel -->
+    <div class="m-panel" id="mPanel">
+      <div class="m-panel-header">
+        <div class="m-panel-title">Widgets</div>
+        <div class="m-panel-close" onclick="togglePanel()">✕</div>
+      </div>
+
+      <div class="card">
+        <div class="alert-item r">
+          <span class="ai">🪟</span>
+          <div><div class="at r">Keuken raam open!</div><div class="as">Regen verwacht om 22:00</div></div>
         </div>
-        <div class="alert-item r" style="margin-bottom:8px"><span class="ai">🪟</span><div><div class="at r">Keuken raam open!</div><div class="as">Regen verwacht om 22:00</div></div></div>
-        <div class="alert-item o" style="margin-bottom:12px"><span class="ai">🔥</span><div><div class="at o">Gas nog aan</div><div class="as">Keuken fornuis</div></div></div>
-        <div class="card" style="margin-bottom:8px">
-          <div class="card-title" style="margin-bottom:8px">Water vandaag</div>
-          <div class="bigstat" id="m-liters">— <span>liter</span></div>
-          <div class="stat-sub" id="m-sub">Laden...</div>
+        <div class="alert-item o" style="margin-bottom:0">
+          <span class="ai">🔥</span>
+          <div><div class="at o">Gas nog aan</div><div class="as">Keuken fornuis · 2u 14min</div></div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">Waterverbruik</div>
+        <div class="bigstat" id="m-liters">— <span>liter</span></div>
+        <div class="stat-sub" id="m-sub">Laden...</div>
+        <div class="mini-stats">
+          <div class="mini-stat"><div class="msv" id="m-lpm">—</div><div class="msl">L/min</div></div>
+          <div class="mini-stat"><div class="msv" id="m-week">—</div><div class="msl">Week</div></div>
+          <div class="mini-stat"><div class="msv" id="m-kosten">—</div><div class="msl">Kosten</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">Apparaten</div>
+        <div class="toggle-row">
+          <div class="tl"><div class="ticon">💡</div><div><div class="tname">Verlichting</div><div class="tsub">Woonkamer</div></div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="tl"><div class="ticon">🌡️</div><div><div class="tname">Verwarming</div><div class="tsub">21°C</div></div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="tl"><div class="ticon">🪟</div><div><div class="tname">Gordijnen</div><div class="tsub">Dicht</div></div></div>
+          <div class="toggle"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="tl"><div class="ticon">🔒</div><div><div class="tname">Voordeur</div><div class="tsub">Op slot</div></div></div>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">Sensoren</div>
+        <div class="sensor-row"><div class="sl"><div class="sdot g"></div><span class="sname">Voordeur</span></div><span class="sval">Op slot</span></div>
+        <div class="sensor-row"><div class="sl"><div class="sdot r"></div><span class="sname">Keuken raam</span></div><span class="sval r">Open!</span></div>
+        <div class="sensor-row"><div class="sl"><div class="sdot o"></div><span class="sname">Gas keuken</span></div><span class="sval o">Aan</span></div>
+        <div class="sensor-row"><div class="sl"><div class="sdot o"></div><span class="sname">Slaapkamer raam</span></div><span class="sval o">Op kier</span></div>
+        <div class="sensor-row"><div class="sl"><div class="sdot g"></div><span class="sname">Achterdeur</span></div><span class="sval">Op slot</span></div>
+      </div>
     </div>
+
   </div>
 
-  <!-- Right panel -->
+  <!-- Right panel (desktop) -->
   <aside class="rightpanel">
-
-    <!-- Meldingen -->
-    <div>
-      <div class="panel-title">Meldingen</div>
-    </div>
+    <div class="panel-title">Meldingen</div>
     <div class="card">
       <div class="alert-item r">
         <span class="ai">🪟</span>
@@ -253,7 +340,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
       </div>
     </div>
 
-    <!-- Water -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Waterverbruik</div>
@@ -268,11 +354,8 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
       </div>
     </div>
 
-    <!-- Apparaten -->
     <div class="card">
-      <div class="card-header">
-        <div class="card-title">Apparaten</div>
-      </div>
+      <div class="card-header"><div class="card-title">Apparaten</div></div>
       <div class="toggle-row">
         <div class="tl"><div class="ticon">💡</div><div><div class="tname">Verlichting</div><div class="tsub">Woonkamer</div></div></div>
         <div class="toggle on"></div>
@@ -291,7 +374,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
       </div>
     </div>
 
-    <!-- Sensoren -->
     <div class="card">
       <div class="card-header"><div class="card-title">Alle sensoren</div></div>
       <div class="sensor-row"><div class="sl"><div class="sdot g"></div><span class="sname">Voordeur</span></div><span class="sval">Op slot</span></div>
@@ -301,8 +383,8 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
       <div class="sensor-row"><div class="sl"><div class="sdot g"></div><span class="sname">Achterdeur</span></div><span class="sval">Op slot</span></div>
       <div class="sensor-row"><div class="sl"><div class="sdot g"></div><span class="sname">Beweging woonk.</span></div><span class="sval">Actief</span></div>
     </div>
-
   </aside>
+
 </div>
 
 <script>
@@ -315,13 +397,12 @@ setInterval(() => {
 
 // Toggles
 document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+
+// Nav
 document.querySelectorAll('.nico').forEach(n => n.addEventListener('click', () => {
   document.querySelectorAll('.nico').forEach(x => x.classList.remove('on'));
   n.classList.add('on');
 }));
-
-// Mobile
-function toggleDrawer() { document.getElementById('mdrawer').classList.toggle('open'); }
 
 // Floor tabs
 function setFloor(f, el) {
@@ -329,12 +410,20 @@ function setFloor(f, el) {
   el.classList.add('on');
 }
 
-// API
+// Mobile panel
+function togglePanel() {
+  document.getElementById('mPanel').classList.toggle('open');
+  document.getElementById('mOverlay').classList.toggle('show');
+}
+
+// API data
 async function haalData() {
   try {
     const r1 = await fetch('/api/watermeter/live');
     const d1 = await r1.json();
     document.getElementById('water-lpm').textContent = d1.liters_per_minuut;
+    document.getElementById('m-lpm').textContent = d1.liters_per_minuut;
+
     const r2 = await fetch('/api/watermeter/vandaag');
     const d2 = await r2.json();
     document.getElementById('water-liters').innerHTML = d2.liters + ' <span>liter</span>';
@@ -342,10 +431,13 @@ async function haalData() {
     document.getElementById('water-kosten').textContent = '€ ' + d2.kosten;
     document.getElementById('m-liters').innerHTML = d2.liters + ' <span>liter</span>';
     document.getElementById('m-sub').textContent = '€ ' + d2.kosten + ' vandaag';
+    document.getElementById('m-kosten').textContent = '€ ' + d2.kosten;
+
     const r3 = await fetch('/api/watermeter/week');
     const d3 = await r3.json();
     const tot = d3.liters.reduce((a,b)=>a+b,0);
     document.getElementById('water-week').textContent = Math.round(tot)+'L';
+    document.getElementById('m-week').textContent = Math.round(tot)+'L';
   } catch(e) {}
 }
 haalData(); setInterval(haalData, 5000);
@@ -363,10 +455,8 @@ renderer.setSize(W(), H());
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x141414, 0.018);
-
 const cam = new THREE.PerspectiveCamera(42, W()/H(), 0.1, 200);
 
-// Lights
 scene.add(new THREE.AmbientLight(0x2a1f0f, 2.0));
 const sun = new THREE.DirectionalLight(0xe8b84b, 0.7);
 sun.position.set(12,22,12); sun.castShadow = true;
@@ -374,83 +464,52 @@ sun.shadow.mapSize.set(2048,2048);
 scene.add(sun);
 scene.add(Object.assign(new THREE.DirectionalLight(0x0a1520, 0.5), {position: new THREE.Vector3(-10,8,-10)}));
 
-// Ground
 const gnd = new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.MeshLambertMaterial({color:0x0e0e0e}));
 gnd.rotation.x = -Math.PI/2; gnd.receiveShadow = true; scene.add(gnd);
 scene.add(new THREE.GridHelper(50,50,0x1a1a1a,0x161616));
 
-// ── Room definitions ──
 const roomDefs = [
-  // Ground floor
   { name:'Woonkamer',    x:0,    y:0,   z:0,    w:8,   h:3.2, d:6,   floor:0 },
   { name:'Keuken',       x:9.5,  y:0,   z:0,    w:5,   h:3.2, d:6,   floor:0 },
   { name:'Gang',         x:4.2,  y:0,   z:0,    w:3.5, h:3.2, d:3,   floor:0 },
   { name:'Toilet',       x:4.2,  y:0,   z:-3.2, w:3.5, h:3.2, d:3,   floor:0 },
-  // First floor
   { name:'Slaapkamer 1', x:0,    y:3.2, z:0,    w:7,   h:3,   d:6,   floor:1 },
   { name:'Slaapkamer 2', x:8,    y:3.2, z:0,    w:6.5, h:3,   d:6,   floor:1 },
   { name:'Badkamer',     x:0,    y:3.2, z:-6,   w:5,   h:3,   d:3.5, floor:1 },
   { name:'Overloop',     x:5.5,  y:3.2, z:-3,   w:3,   h:3,   d:3,   floor:1 },
 ];
 
-const wallMats = {};
-roomDefs.forEach((r,i) => {
-  const mat = new THREE.MeshLambertMaterial({
-    color: 0x1a1814,
-    transparent: true,
-    opacity: 0.25,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  wallMats[i] = mat;
+roomDefs.forEach((r) => {
+  const mat = new THREE.MeshLambertMaterial({ color:0x1a1814, transparent:true, opacity:0.25, side:THREE.DoubleSide, depthWrite:false });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(r.w, r.h, r.d), mat);
-  mesh.position.set(r.x, r.y + r.h/2, r.z);
+  mesh.position.set(r.x, r.y+r.h/2, r.z);
   mesh.castShadow = true; mesh.receiveShadow = true;
   scene.add(mesh);
 
-  // Edges — show structure
   const edgeCol = r.floor === 0 ? 0x3a3020 : 0x2a2a3a;
-  const edges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(mesh.geometry),
-    new THREE.LineBasicMaterial({color: edgeCol, transparent:true, opacity:0.7})
-  );
-  edges.position.copy(mesh.position);
-  scene.add(edges);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({color:edgeCol, transparent:true, opacity:0.7}));
+  edges.position.copy(mesh.position); scene.add(edges);
 
-  // Floor inside room
-  const floorMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(r.w - 0.1, r.d - 0.1),
-    new THREE.MeshLambertMaterial({color: r.floor === 0 ? 0x1a1510 : 0x141418, transparent:true, opacity:0.6})
-  );
+  const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(r.w-0.1, r.d-0.1), new THREE.MeshLambertMaterial({color: r.floor===0?0x1a1510:0x141418, transparent:true, opacity:0.6}));
   floorMesh.rotation.x = -Math.PI/2;
-  floorMesh.position.set(r.x, r.y + 0.01, r.z);
-  floorMesh.receiveShadow = true;
-  scene.add(floorMesh);
+  floorMesh.position.set(r.x, r.y+0.01, r.z);
+  floorMesh.receiveShadow = true; scene.add(floorMesh);
 
-  // Room label (simple line indicator)
-  const roomLight = new THREE.PointLight(
-    r.floor === 0 ? 0xe8c060 : 0x6080c0,
-    0.4, r.w * 1.2
-  );
-  roomLight.position.set(r.x, r.y + r.h * 0.7, r.z);
-  scene.add(roomLight);
+  const roomLight = new THREE.PointLight(r.floor===0?0xe8c060:0x6080c0, 0.4, r.w*1.2);
+  roomLight.position.set(r.x, r.y+r.h*0.7, r.z); scene.add(roomLight);
 });
 
-// ── Roof ──
-const roofMat = new THREE.MeshLambertMaterial({color:0x0d0d0d, transparent:true, opacity:0.6});
-const roof = new THREE.Mesh(new THREE.ConeGeometry(10, 4, 4), roofMat);
-roof.position.set(5.5, 9.7, -1.5); roof.rotation.y = Math.PI/4; roof.castShadow = true;
-scene.add(roof);
-const roofEdge = new THREE.LineSegments(new THREE.EdgesGeometry(roof.geometry), new THREE.LineBasicMaterial({color:0x2a2a2a, transparent:true, opacity:0.5}));
-roofEdge.position.copy(roof.position); roofEdge.rotation.copy(roof.rotation); scene.add(roofEdge);
+// Roof
+const roof = new THREE.Mesh(new THREE.ConeGeometry(10,4,4), new THREE.MeshLambertMaterial({color:0x0d0d0d, transparent:true, opacity:0.6}));
+roof.position.set(5.5,9.7,-1.5); roof.rotation.y = Math.PI/4; roof.castShadow = true; scene.add(roof);
+const re = new THREE.LineSegments(new THREE.EdgesGeometry(roof.geometry), new THREE.LineBasicMaterial({color:0x2a2a2a, transparent:true, opacity:0.5}));
+re.position.copy(roof.position); re.rotation.copy(roof.rotation); scene.add(re);
 
-// Solar panels
 for(let i=0;i<4;i++){
   const sp = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.06,1.0), new THREE.MeshLambertMaterial({color:0x081428, emissive:0x001133, emissiveIntensity:0.6}));
-  sp.position.set(2+i*2.2, 8.4, 1.8); sp.rotation.x = -0.5; scene.add(sp);
+  sp.position.set(2+i*2.2,8.4,1.8); sp.rotation.x=-0.5; scene.add(sp);
 }
 
-// Trees
 [[-7,9],[11,13],[-9,4],[13,-3]].forEach(([tx,tz])=>{
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.25,2,8), new THREE.MeshLambertMaterial({color:0x0d0d0d}));
   trunk.position.set(tx,1,tz); scene.add(trunk);
@@ -458,165 +517,114 @@ for(let i=0;i<4;i++){
   leaves.position.set(tx,3.6,tz); scene.add(leaves);
 });
 
-// Car
 const carBody = new THREE.Mesh(new THREE.BoxGeometry(4,1.2,2), new THREE.MeshLambertMaterial({color:0x141820}));
-carBody.position.set(-5.5, 0.6, 5); carBody.castShadow = true; scene.add(carBody);
+carBody.position.set(-5.5,0.6,5); carBody.castShadow=true; scene.add(carBody);
 const carTop = new THREE.Mesh(new THREE.BoxGeometry(2.5,0.9,1.8), new THREE.MeshLambertMaterial({color:0x0e1218}));
 carTop.position.set(-5.5,1.65,5); scene.add(carTop);
 
-// ── SENSOR DOTS as 3D spheres ──
+// Sensors
 const sensors = [
-  // Ground floor sensors
-  { name:'Keuken raam',      status:'Open!',      type:'r', x:12.0, y:2.0,  z:0,    loc:'Keuken · Noord',      time:'18:42', desc:'Regen verwacht om 22:00' },
-  { name:'Voordeur',         status:'Op slot',     type:'g', x:4.2,  y:0.8,  z:3.1,  loc:'Gang · Voordeur',     time:'22:14', desc:'Vergrendeld' },
-  { name:'Gas fornuis',      status:'Aan!',        type:'o', x:9.5,  y:1.2,  z:2.5,  loc:'Keuken · Fornuis',    time:'19:30', desc:'Al 2u 14min aan' },
-  { name:'Achterdeur',       status:'Op slot',     type:'g', x:4.2,  y:0.8,  z:-4.8, loc:'Toilet · Achterdeur', time:'21:00', desc:'Vergrendeld' },
-  { name:'Beweging',         status:'Actief',      type:'g', x:0,    y:2.5,  z:0,    loc:'Woonkamer',           time:'21:40', desc:'Aanwezig' },
-  // First floor sensors
-  { name:'Slaapkamer raam',  status:'Op kier',     type:'o', x:8.0,  y:5.2,  z:3.1,  loc:'Slaapkamer 2 · Zuid', time:'20:15', desc:'Licht open' },
-  { name:'Badkamer raam',    status:'Dicht',       type:'g', x:-0.1, y:4.8,  z:-7.5, loc:'Badkamer · Noord',    time:'—',     desc:'Alles in orde' },
-  { name:'Rookmelder',       status:'OK',          type:'g', x:3.5,  y:5.8,  z:3,    loc:'Overloop · Plafond',  time:'—',     desc:'Geen rook' },
+  { name:'Keuken raam',     status:'Open!',   type:'r', x:12.0, y:2.0, z:0,    loc:'Keuken · Noord',      time:'18:42' },
+  { name:'Voordeur',        status:'Op slot', type:'g', x:4.2,  y:0.8, z:3.1,  loc:'Gang · Voordeur',     time:'22:14' },
+  { name:'Gas fornuis',     status:'Aan!',    type:'o', x:9.5,  y:1.2, z:2.5,  loc:'Keuken · Fornuis',    time:'19:30' },
+  { name:'Achterdeur',      status:'Op slot', type:'g', x:4.2,  y:0.8, z:-4.8, loc:'Toilet · Achterdeur', time:'21:00' },
+  { name:'Beweging',        status:'Actief',  type:'g', x:0,    y:2.5, z:0,    loc:'Woonkamer',           time:'21:40' },
+  { name:'Slaapkamer raam', status:'Op kier', type:'o', x:8.0,  y:5.2, z:3.1,  loc:'Slaapkamer 2 · Zuid', time:'20:15' },
+  { name:'Badkamer raam',   status:'Dicht',   type:'g', x:-0.1, y:4.8, z:-7.5, loc:'Badkamer · Noord',    time:'—'     },
+  { name:'Rookmelder',      status:'OK',      type:'g', x:3.5,  y:5.8, z:3,    loc:'Overloop · Plafond',  time:'—'     },
 ];
 
 const sensorMeshes = [];
-
 sensors.forEach(s => {
-  const col = s.type === 'r' ? 0xe05c5c : s.type === 'o' ? 0xe8914b : 0x4caf82;
+  const col = s.type==='r'?0xe05c5c:s.type==='o'?0xe8914b:0x4caf82;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18,12,12), new THREE.MeshBasicMaterial({color:col}));
+  mesh.position.set(s.x,s.y,s.z);
+  mesh.userData = {...s, isSensor:true, col};
+  scene.add(mesh); sensorMeshes.push(mesh);
 
-  // Main sphere
-  const geo = new THREE.SphereGeometry(0.18, 12, 12);
-  const mat = new THREE.MeshBasicMaterial({color: col});
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(s.x, s.y, s.z);
-  mesh.userData = { ...s, isSensor: true, col };
-  scene.add(mesh);
-  sensorMeshes.push(mesh);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.25,0.4,20), new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.5, side:THREE.DoubleSide}));
+  ring.position.copy(mesh.position); ring.userData.isRing=true; scene.add(ring);
 
-  // Outer ring (pulsing)
-  const ringGeo = new THREE.RingGeometry(0.25, 0.4, 20);
-  const ringMat = new THREE.MeshBasicMaterial({color: col, transparent:true, opacity:0.5, side:THREE.DoubleSide});
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.position.copy(mesh.position);
-  ring.userData.isRing = true; ring.userData.col = col; ring.userData.type = s.type;
-  scene.add(ring);
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.45,0.55,20), new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.2, side:THREE.DoubleSide}));
+  ring2.position.copy(mesh.position); ring2.userData.isRing2=true; scene.add(ring2);
 
-  // Second outer ring
-  const ring2Geo = new THREE.RingGeometry(0.45, 0.55, 20);
-  const ring2Mat = new THREE.MeshBasicMaterial({color: col, transparent:true, opacity:0.2, side:THREE.DoubleSide});
-  const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-  ring2.position.copy(mesh.position);
-  ring2.userData.isRing2 = true; ring2.userData.col = col;
-  scene.add(ring2);
-
-  // Line from sensor to floor (like a pin)
-  if (s.y > 0.5) {
-    const points = [new THREE.Vector3(s.x, s.y - 0.18, s.z), new THREE.Vector3(s.x, 0.02, s.z)];
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineBasicMaterial({color: col, transparent:true, opacity:0.2});
-    scene.add(new THREE.Line(lineGeo, lineMat));
+  if(s.y>0.5){
+    const points=[new THREE.Vector3(s.x,s.y-0.18,s.z),new THREE.Vector3(s.x,0.02,s.z)];
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.2})));
   }
 });
 
-// ── Raycasting for sensor hover ──
+// Raycasting
 const ray = new THREE.Raycaster();
-ray.params.Points = { threshold: 0.3 };
 const mouse = new THREE.Vector2();
 const stip = document.getElementById('stip');
 
 cw.addEventListener('mousemove', e => {
   const rect = cw.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
   ray.setFromCamera(mouse, cam);
   const hits = ray.intersectObjects(sensorMeshes);
-
-  if (hits.length > 0) {
-    const s = hits[0].object.userData;
-    const cls = s.type === 'r' ? 'r' : s.type === 'o' ? 'o' : 'g';
-    document.getElementById('st-name').textContent = s.name;
-    document.getElementById('st-name').className = `st-name ${cls}`;
-    document.getElementById('st-status').textContent = s.status;
-    document.getElementById('st-loc').textContent = s.loc;
-    document.getElementById('st-time').textContent = s.time;
-    stip.style.left = (e.clientX - rect.left + 16) + 'px';
-    stip.style.top = (e.clientY - rect.top - 100) + 'px';
+  if(hits.length>0){
+    const s=hits[0].object.userData;
+    const cls=s.type==='r'?'r':s.type==='o'?'o':'g';
+    document.getElementById('st-name').textContent=s.name;
+    document.getElementById('st-name').className=`st-name ${cls}`;
+    document.getElementById('st-status').textContent=s.status;
+    document.getElementById('st-loc').textContent=s.loc;
+    document.getElementById('st-time').textContent=s.time;
+    stip.style.left=(e.clientX-rect.left+16)+'px';
+    stip.style.top=(e.clientY-rect.top-100)+'px';
     stip.classList.add('show');
-    cw.style.cursor = 'pointer';
-  } else {
-    stip.classList.remove('show');
-    cw.style.cursor = 'default';
-  }
+    cw.style.cursor='pointer';
+  } else { stip.classList.remove('show'); cw.style.cursor='default'; }
 });
-cw.addEventListener('mouseleave', () => stip.classList.remove('show'));
+cw.addEventListener('mouseleave', ()=>stip.classList.remove('show'));
 
-// ── Orbit controls ──
-let drag = false, ox = 0, oy = 0;
-let sph = { theta: 0.65, phi: 0.82, r: 32 };
-const target = new THREE.Vector3(5, 3, 0);
-
-function applyC() {
+// Orbit controls
+let drag=false, ox=0, oy=0;
+let sph={theta:0.65, phi:0.82, r:32};
+const target=new THREE.Vector3(5,3,0);
+function applyC(){
   cam.position.set(
-    target.x + sph.r * Math.sin(sph.phi) * Math.sin(sph.theta),
-    target.y + sph.r * Math.cos(sph.phi),
-    target.z + sph.r * Math.sin(sph.phi) * Math.cos(sph.theta)
+    target.x+sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+    target.y+sph.r*Math.cos(sph.phi),
+    target.z+sph.r*Math.sin(sph.phi)*Math.cos(sph.theta)
   );
   cam.lookAt(target);
 }
 applyC();
 
-canvas.addEventListener('mousedown', e => { drag = true; ox = e.clientX; oy = e.clientY; });
-window.addEventListener('mouseup', () => drag = false);
-window.addEventListener('mousemove', e => {
-  if (!drag) return;
-  sph.theta -= (e.clientX - ox) * 0.007;
-  sph.phi = Math.max(0.15, Math.min(1.45, sph.phi + (e.clientY - oy) * 0.005));
-  ox = e.clientX; oy = e.clientY; applyC();
+canvas.addEventListener('mousedown', e=>{drag=true;ox=e.clientX;oy=e.clientY;});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('mousemove',e=>{
+  if(!drag)return;
+  sph.theta-=(e.clientX-ox)*0.007;
+  sph.phi=Math.max(0.15,Math.min(1.45,sph.phi+(e.clientY-oy)*0.005));
+  ox=e.clientX;oy=e.clientY;applyC();
 });
-canvas.addEventListener('wheel', e => {
-  sph.r = Math.max(10, Math.min(55, sph.r + e.deltaY * 0.04));
-  applyC(); e.preventDefault();
-}, { passive: false });
+canvas.addEventListener('wheel',e=>{sph.r=Math.max(10,Math.min(55,sph.r+e.deltaY*0.04));applyC();e.preventDefault();},{passive:false});
 
-// Touch
-let lt = null;
-canvas.addEventListener('touchstart', e => { lt = e.touches[0]; });
-canvas.addEventListener('touchmove', e => {
-  if (!lt) return;
-  const t = e.touches[0];
-  sph.theta -= (t.clientX - lt.clientX) * 0.008;
-  sph.phi = Math.max(0.15, Math.min(1.45, sph.phi + (t.clientY - lt.clientY) * 0.005));
-  lt = t; applyC(); e.preventDefault();
-}, { passive: false });
+let lt=null;
+canvas.addEventListener('touchstart',e=>{lt=e.touches[0];});
+canvas.addEventListener('touchmove',e=>{
+  if(!lt)return;
+  const t=e.touches[0];
+  sph.theta-=(t.clientX-lt.clientX)*0.008;
+  sph.phi=Math.max(0.15,Math.min(1.45,sph.phi+(t.clientY-lt.clientY)*0.005));
+  lt=t;applyC();e.preventDefault();
+},{passive:false});
 
-// Resize
-window.addEventListener('resize', () => {
-  renderer.setSize(W(), H());
-  cam.aspect = W() / H();
-  cam.updateProjectionMatrix();
-});
+window.addEventListener('resize',()=>{renderer.setSize(W(),H());cam.aspect=W()/H();cam.updateProjectionMatrix();});
 
-// ── Animate ──
-let t = 0;
-function animate() {
-  requestAnimationFrame(animate);
-  t += 0.016;
-
-  scene.children.forEach(o => {
-    if (o.userData.isRing) {
-      const s = 1 + 0.35 * Math.sin(t * 2.5);
-      o.scale.setScalar(s);
-      o.material.opacity = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.5));
-      o.lookAt(cam.position);
-    }
-    if (o.userData.isRing2) {
-      const s = 1 + 0.5 * Math.sin(t * 2.5 + 1);
-      o.scale.setScalar(s);
-      o.material.opacity = 0.05 + 0.15 * (0.5 + 0.5 * Math.sin(t * 2.5 + 1));
-      o.lookAt(cam.position);
-    }
+let t=0;
+function animate(){
+  requestAnimationFrame(animate); t+=0.016;
+  scene.children.forEach(o=>{
+    if(o.userData.isRing){const s=1+0.35*Math.sin(t*2.5);o.scale.setScalar(s);o.material.opacity=0.15+0.35*(0.5+0.5*Math.sin(t*2.5));o.lookAt(cam.position);}
+    if(o.userData.isRing2){const s=1+0.5*Math.sin(t*2.5+1);o.scale.setScalar(s);o.material.opacity=0.05+0.15*(0.5+0.5*Math.sin(t*2.5+1));o.lookAt(cam.position);}
   });
-
-  renderer.render(scene, cam);
+  renderer.render(scene,cam);
 }
 animate();
 </script>

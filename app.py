@@ -8,25 +8,6 @@ import json
 import threading
 import requests as req
 
-
-@app.route('/api/radar/<path:tile_path>')
-def radar_proxy(tile_path):
-    """Proxy voor KNMI WMS radar tiles met API key"""
-    knmi_url = f"https://api.dataplatform.knmi.nl/wms/adaguc-server"
-    params = dict(request.args)
-    params['DATASET'] = 'radar_reflectivity_composites'
-
-    try:
-        resp = req.get(
-            knmi_url,
-            params=params,
-            headers={
-                'Authorization': 'eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI5YWUzZDZlYTIxZDQ4MWVhODkzNTIzODVjMzU1ZWQ2IiwiaCI6Im11cm11cjEyOCJ9'},
-            timeout=10
-        )
-        return resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'image/png')}
-    except Exception as e:
-        return str(e), 500
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 
@@ -93,13 +74,19 @@ def genereer_nep_data():
 
 
 # ── Routes ──────────────────────────────────────────
-@app.route('/weer')
-def weer():
-    return render_template('weer.html')
-
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/water')
+def water():
+    return render_template('water.html')
+
+
+@app.route('/weer')
+def weer():
+    return render_template('weer.html')
 
 
 @app.route('/api/watermeter/live')
@@ -158,9 +145,25 @@ def watermeter_week():
         'kosten': kosten
     })
 
-@app.route('/water')
-def water():
-    return render_template('water.html')
+
+@app.route('/api/radar/tiles')
+def radar_proxy():
+    """Proxy voor KNMI WMS radar tiles met API key"""
+    knmi_url = 'https://api.dataplatform.knmi.nl/wms/adaguc-server'
+    params = dict(request.args)
+    params['DATASET'] = 'radar_reflectivity_composites'
+
+    try:
+        resp = req.get(
+            knmi_url,
+            params=params,
+            headers={'Authorization': 'eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI5YWUzZDZlYTIxZDQ4MWVhODkzNTIzODVjMzU1ZWQ2IiwiaCI6Im11cm11cjEyOCJ9'},
+            timeout=10
+        )
+        return resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'image/png')}
+    except Exception as e:
+        return str(e), 500
+
 
 # ── MQTT ──────────────────────────────────────────
 def on_mqtt_message(client, userdata, message):
@@ -193,6 +196,7 @@ def start_mqtt():
 def start_mqtt_thread():
     thread = threading.Thread(target=start_mqtt, daemon=True)
     thread.start()
+
 
 # ── Start ──────────────────────────────────────────
 if __name__ == '__main__':

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Savera</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="{{ url_for('static', filename='three.min.js') }}"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -212,11 +212,11 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
   <!-- Left nav -->
   <nav class="leftnav">
     <div class="nico on" title="Dashboard">🏠</div>
-    <div class="nico" title="Water">💧</div>
+    <div class="nico" title="Weer" onclick="window.location.href='/weer'">🌤️</div>
+    <div class="nico" title="Water" onclick="window.location.href='/water'">💧</div>
     <div class="nico" title="Energie">⚡</div>
     <div class="nico" title="Klimaat">🌡️</div>
     <div class="nico" title="Beveiliging">🔒</div>
-    <div class="nico" title="Camera">📷</div>
     <div class="nico" title="Planten">🌿</div>
     <div class="spacer"></div>
     <div class="nico" title="Instellingen">⚙️</div>
@@ -462,7 +462,9 @@ const sun = new THREE.DirectionalLight(0xe8b84b, 0.7);
 sun.position.set(12,22,12); sun.castShadow = true;
 sun.shadow.mapSize.set(2048,2048);
 scene.add(sun);
-scene.add(Object.assign(new THREE.DirectionalLight(0x0a1520, 0.5), {position: new THREE.Vector3(-10,8,-10)}));
+const fillLight = new THREE.DirectionalLight(0x0a1520, 0.5);
+fillLight.position.set(-10, 8, -10);
+scene.add(fillLight);
 
 const gnd = new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.MeshLambertMaterial({color:0x0e0e0e}));
 gnd.rotation.x = -Math.PI/2; gnd.receiveShadow = true; scene.add(gnd);

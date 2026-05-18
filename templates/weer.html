@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Savera — Weer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #141414; --bg2: #1a1a1a; --bg3: #222;
+  --accent: #e8b84b; --accent2: #4caf82; --warn: #e05c5c;
+  --orange: #e8914b; --blue: #4b9fe8; --purple: #9b59b6;
+  --text: #fff; --muted: rgba(255,255,255,0.35);
+  --border: rgba(255,255,255,0.07);
+}
+body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); min-height: 100vh; display: grid; grid-template-rows: 52px 1fr; }
+
+header { background: var(--bg2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--border); }
+.logo { font-size: 15px; font-weight: 700; letter-spacing: 3px; }
+.logo span { color: var(--accent); }
+.hright { display: flex; align-items: center; gap: 14px; }
+.live-pill { background: rgba(255,255,255,0.07); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.ldot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+.main { display: grid; grid-template-columns: 52px 1fr; overflow: hidden; height: 100%; }
+
+.leftnav { background: var(--bg2); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; border-right: 1px solid var(--border); }
+.nico { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); cursor: pointer; transition: all .2s; }
+.nico:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.nico.on { background: rgba(232,184,75,0.12); color: var(--accent); }
+.spacer { flex: 1; }
+
+.content { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* Page header */
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.page-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.update-time { font-size: 11px; color: var(--muted); }
+
+/* Cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.card-title { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
+
+/* Huidig weer */
+.weer-huidig { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+.weer-main { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 22px; grid-column: span 2; display: flex; align-items: center; gap: 20px; }
+.weer-icon { font-size: 64px; line-height: 1; }
+.weer-temp { font-size: 52px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+.weer-desc { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.weer-loc { font-size: 11px; color: var(--accent); margin-top: 6px; font-weight: 600; letter-spacing: 1px; }
+
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.stat-val { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.stat-unit { font-size: 12px; color: var(--muted); margin-left: 3px; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* Waarschuwingen */
+.waarsch { border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.waarsch:last-child { margin-bottom: 0; }
+.waarsch.goed { background: rgba(76,175,130,0.08); border: 1px solid rgba(76,175,130,0.2); }
+.waarsch.let-op { background: rgba(232,145,75,0.08); border: 1px solid rgba(232,145,75,0.2); }
+.waarsch.gevaar { background: rgba(224,92,92,0.08); border: 1px solid rgba(224,92,92,0.2); }
+.waarsch-ico { font-size: 20px; flex-shrink: 0; }
+.waarsch-titel { font-size: 13px; font-weight: 600; }
+.waarsch.goed .waarsch-titel { color: var(--accent2); }
+.waarsch.let-op .waarsch-titel { color: var(--orange); }
+.waarsch.gevaar .waarsch-titel { color: var(--warn); }
+.waarsch-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* Uurlijks */
+.uur-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.uur-scroll::-webkit-scrollbar { height: 3px; }
+.uur-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+.uur-item { flex-shrink: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; text-align: center; min-width: 70px; }
+.uur-item.now { border-color: var(--accent); background: rgba(232,184,75,0.08); }
+.uur-tijd { font-size: 10px; color: var(--muted); margin-bottom: 8px; font-weight: 600; }
+.uur-ico { font-size: 20px; margin-bottom: 6px; }
+.uur-temp { font-size: 14px; font-weight: 700; }
+.uur-regen { font-size: 10px; color: var(--blue); margin-top: 4px; }
+
+/* 7 dagen */
+.dag-rij { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.dag-rij:last-child { border-bottom: none; }
+.dag-naam { font-size: 12px; font-weight: 600; width: 80px; }
+.dag-naam.today { color: var(--accent); }
+.dag-ico { font-size: 20px; width: 30px; text-align: center; }
+.dag-bar { flex: 1; margin: 0 14px; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; position: relative; }
+.dag-bar-fill { position: absolute; height: 100%; border-radius: 2px; background: linear-gradient(to right, var(--blue), var(--accent)); }
+.dag-temps { font-size: 12px; font-weight: 600; width: 70px; text-align: right; }
+.dag-min { color: var(--muted); margin-right: 4px; }
+.dag-regen { font-size: 11px; color: var(--blue); width: 40px; text-align: right; }
+
+/* Kitesurf sectie */
+.kite-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.kite-status { flex: 1; }
+.kite-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.kite-badge.gaat { background: rgba(76,175,130,0.15); border: 1px solid rgba(76,175,130,0.3); color: var(--accent2); }
+.kite-badge.matig { background: rgba(232,184,75,0.15); border: 1px solid rgba(232,184,75,0.3); color: var(--accent); }
+.kite-badge.niet { background: rgba(224,92,92,0.15); border: 1px solid rgba(224,92,92,0.3); color: var(--warn); }
+.kite-grootte { text-align: center; padding: 16px; background: var(--bg3); border-radius: 12px; border: 1px solid var(--border); min-width: 120px; }
+.kite-m2 { font-size: 36px; font-weight: 700; color: var(--accent); line-height: 1; }
+.kite-m2-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.kite-details { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+.kite-detail { background: var(--bg3); border-radius: 9px; padding: 12px; text-align: center; }
+.kd-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+.kd-val { font-size: 16px; font-weight: 700; }
+.kite-tip { background: rgba(75,159,232,0.08); border: 1px solid rgba(75,159,232,0.2); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+.kite-tip strong { color: var(--blue); }
+
+/* Wind kompas */
+.kompas-wrap { display: flex; align-items: center; gap: 20px; }
+.kompas { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--border); position: relative; flex-shrink: 0; background: var(--bg3); }
+.kompas-n { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--warn); font-weight: 700; }
+.kompas-pijl { position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background: var(--accent); transform-origin: bottom center; margin-left: -1px; margin-top: -30px; border-radius: 2px; }
+
+/* Radar kaart */
+#radar-map { width: 100%; height: 340px; border-radius: 10px; overflow: hidden; background: #0a0a0a; position: relative; z-index: 1; }
+.radar-controls { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.radar-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s; font-family: inherit; }
+.radar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.radar-btn.on { background: rgba(232,184,75,0.12); border-color: var(--accent); color: var(--accent); }
+.radar-tijd { font-size: 11px; color: var(--muted); margin-left: auto; }
+.radar-legenda { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.radar-legenda-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+.radar-kleur { width: 14px; height: 10px; border-radius: 2px; }
+
+/* Droge momenten tijdlijn */
+.droog-advies { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.droog-advies.goed { background: rgba(76,175,130,0.1); border: 1px solid rgba(76,175,130,0.25); color: var(--accent2); }
+.droog-advies.matig { background: rgba(232,184,75,0.1); border: 1px solid rgba(232,184,75,0.25); color: var(--accent); }
+.droog-advies.slecht { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.25); color: var(--warn); }
+.droog-tijdlijn { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.droog-tijdlijn::-webkit-scrollbar { height: 3px; }
+.droog-tijdlijn::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+.droog-blok { flex-shrink: 0; text-align: center; min-width: 56px; }
+.droog-blok-bar { height: 36px; border-radius: 6px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.droog-blok-bar.droog { background: rgba(76,175,130,0.2); border: 1px solid rgba(76,175,130,0.3); }
+.droog-blok-bar.kans { background: rgba(232,184,75,0.2); border: 1px solid rgba(232,184,75,0.3); }
+.droog-blok-bar.regen { background: rgba(224,92,92,0.2); border: 1px solid rgba(224,92,92,0.3); }
+.droog-blok-tijd { font-size: 10px; color: var(--muted); font-weight: 600; }
+.droog-blok-kans { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.droog-blok.now .droog-blok-tijd { color: var(--accent); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+
+/* Loading */
+.loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--muted); font-size: 13px; gap: 10px; }
+.loading-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@media (max-width: 768px) {
+  .main { grid-template-columns: 44px 1fr; }
+  .leftnav { width: 44px; padding: 10px 0; }
+  .nico { width: 30px; height: 30px; font-size: 14px; }
+  .weer-huidig { grid-template-columns: 1fr 1fr; }
+  .weer-main { grid-column: span 2; }
+  .kite-details { grid-template-columns: 1fr 1fr; }
+  .content { padding: 14px; gap: 12px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SAVE<span>RA</span></div>
+  <div class="hright">
+    <div class="live-pill"><div class="ldot"></div> Live · Schellinkhout</div>
+    <div style="font-size:13px;color:var(--muted)" id="clk">00:00</div>
+  </div>
+</header>
+
+<div class="main">
+  <nav class="leftnav">
+    <div class="nico" title="Dashboard" onclick="window.location.href='/'">🏠</div>
+    <div class="nico" title="Water" onclick="window.location.href='/water'">💧</div>
+    <div class="nico" title="Energie">⚡</div>
+    <div class="nico" title="Klimaat">🌡️</div>
+    <div class="nico" title="Beveiliging">🔒</div>
+    <div class="nico on" title="Weer">🌤️</div>
+    <div class="nico" title="Planten">🌿</div>
+    <div class="spacer"></div>
+    <div class="nico" title="Instellingen">⚙️</div>
+  </nav>
+
+  <div class="content" id="content">
+    <div class="loading">
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+      Weer ophalen voor Schellinkhout...
+    </div>
+  </div>
+</div>
+
+<script>
+// Clock
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clk').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}, 1000);
+
+// Nav
+document.querySelectorAll('.nico').forEach(n => n.addEventListener('click', function() {
+  if(this.title === 'Weer') return;
+  document.querySelectorAll('.nico').forEach(x => x.classList.remove('on'));
+  this.classList.add('on');
+}));
+
+// ── Schellinkhout coördinaten ──
+const LAT = 52.6567;
+const LON = 5.1833;
+const GEWICHT = 80; // kg rijdergewicht
+
+// ── Weer icons ──
+function weerIcon(code, isDay=true) {
+  const icons = {
+    0: isDay ? '☀️' : '🌙',
+    1: isDay ? '🌤️' : '🌤️',
+    2: '⛅',
+    3: '☁️',
+    45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌧️',
+    61: '🌧️', 63: '🌧️', 65: '🌨️',
+    71: '❄️', 73: '❄️', 75: '❄️',
+    80: '🌦️', 81: '🌧️', 82: '⛈️',
+    85: '🌨️', 86: '🌨️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️',
+  };
+  return icons[code] || '🌤️';
+}
+
+function weerOmschrijving(code) {
+  const desc = {
+    0: 'Helder', 1: 'Overwegend helder', 2: 'Gedeeltelijk bewolkt', 3: 'Bewolkt',
+    45: 'Mist', 48: 'Ijsmist',
+    51: 'Lichte motregen', 53: 'Matige motregen', 55: 'Zware motregen',
+    61: 'Lichte regen', 63: 'Matige regen', 65: 'Zware regen',
+    71: 'Lichte sneeuw', 73: 'Matige sneeuw', 75: 'Zware sneeuw',
+    80: 'Lichte buien', 81: 'Matige buien', 82: 'Zware buien',
+    95: 'Onweer', 96: 'Onweer met hagel', 99: 'Zwaar onweer',
+  };
+  return desc[code] || 'Onbekend';
+}
+
+function windRichting(graden) {
+  const richtingen = ['N','NNO','NO','ONO','O','OZO','ZO','ZZO','Z','ZZW','ZW','WZW','W','WNW','NW','NNW'];
+  return richtingen[Math.round(graden/22.5) % 16];
+}
+
+function windBeaufort(ms) {
+  if(ms < 0.3) return 0;
+  if(ms < 1.6) return 1;
+  if(ms < 3.4) return 2;
+  if(ms < 5.5) return 3;
+  if(ms < 8.0) return 4;
+  if(ms < 10.8) return 5;
+  if(ms < 13.9) return 6;
+  if(ms < 17.2) return 7;
+  if(ms < 20.8) return 8;
+  if(ms < 24.5) return 9;
+  if(ms < 28.5) return 10;
+  if(ms < 32.7) return 11;
+  return 12;
+}
+
+// ── Kitesurf advies voor 80kg rijder ──
+function kiteAdvies(windMS, windstootMS, richting) {
+  const knopen = windMS * 1.94384;
+  const stoten = windstootMS * 1.94384;
+  const bf = windBeaufort(windMS);
+
+  let maat = '—';
+  let status = 'niet';
+  let statusTekst = 'Niet kitesurfen';
+  let tip = '';
+
+  // Berekening voor 80kg rijder op plat water (IJsselmeer)
+  if(knopen < 10) {
+    status = 'niet';
+    statusTekst = 'Te weinig wind';
+    maat = '—';
+    tip = 'Minimaal 10 knopen nodig voor een 80kg rijder. Misschien morgen?';
+  } else if(knopen >= 10 && knopen < 14) {
+    status = 'matig';
+    statusTekst = 'Lichte wind';
+    maat = '17';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Met een grote 17m² kite is het mogelijk maar vraagt meer inspanning.`;
+  } else if(knopen >= 14 && knopen < 18) {
+    status = 'gaat';
+    statusTekst = 'Goede kitesurfwind!';
+    maat = '14-17';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Prima sessie! Kies 14m² bij meer of 17m² bij minder wind.`;
+  } else if(knopen >= 18 && knopen < 22) {
+    status = 'gaat';
+    statusTekst = 'Ideale wind!';
+    maat = '12';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Perfecte omstandigheden voor een 80kg rijder op het IJsselmeer!`;
+  } else if(knopen >= 22 && knopen < 27) {
+    status = 'gaat';
+    statusTekst = 'Sterke wind';
+    maat = '9-10';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Goede sessie met kleine kite. Let op de stoten (${Math.round(stoten)} kn).`;
+  } else if(knopen >= 27 && knopen < 32) {
+    status = 'matig';
+    statusTekst = 'Veel wind';
+    maat = '7-9';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Alleen voor gevorderden. Stoten tot ${Math.round(stoten)} knopen.`;
+  } else {
+    status = 'niet';
+    statusTekst = 'Te veel wind';
+    maat = '—';
+    tip = `Wind van ${Math.round(knopen)} knopen (Bft ${bf}). Te gevaarlijk. Stoten tot ${Math.round(stoten)} knopen. Blijf aan de kant!`;
+  }
+
+  // Windrichting advies voor IJsselmeer bij Schellinkhout
+  const gunstigeRichtingen = ['W','WZW','ZW','NW','NNW','WNW'];
+  const isGunstigeRichting = gunstigeRichtingen.includes(richting);
+
+  return { maat, status, statusTekst, tip, knopen: Math.round(knopen), bf, stoten: Math.round(stoten), isGunstigeRichting, richting };
+}
+
+// ── Waarschuwingen voor het huis ──
+function huisWaarschuwingen(data, huidigIndex) {
+  const waarsch = [];
+  const regen = data.hourly.precipitation[huidigIndex];
+  const regenKans = data.hourly.precipitation_probability[huidigIndex];
+  const wind = data.current.wind_speed_10m;
+  const temp = data.current.temperature_2m;
+  const vochtigheid = data.current.relative_humidity_2m;
+
+  if(regenKans > 70) {
+    waarsch.push({ type: 'let-op', ico: '🌧️', titel: `Regen verwacht (${regenKans}% kans)`, sub: 'Sluit ramen en deuren. Check tuin meubels.' });
+  }
+  if(wind > 15) {
+    waarsch.push({ type: 'let-op', ico: '💨', titel: `Harde wind (${Math.round(wind)} km/u)`, sub: 'Zorg voor losse spullen in de tuin.' });
+  }
+  if(temp < 2) {
+    waarsch.push({ type: 'gevaar', ico: '🧊', titel: `Vorst verwacht (${temp}°C)`, sub: 'Check waterleiding isolatie. Laat kraan druppelen.' });
+  }
+  if(temp > 28) {
+    waarsch.push({ type: 'let-op', ico: '🌡️', titel: `Tropisch warm (${temp}°C)`, sub: 'Sluit gordijnen overdag. Ventileer \'s avonds.' });
+  }
+  if(vochtigheid > 85) {
+    waarsch.push({ type: 'let-op', ico: '💧', titel: `Hoge luchtvochtigheid (${vochtigheid}%)`, sub: 'Ventileer het huis. Controleer op condens.' });
+  }
+
+  if(waarsch.length === 0) {
+    waarsch.push({ type: 'goed', ico: '✅', titel: 'Geen bijzondere omstandigheden', sub: 'Het weer is prima voor uw woning.' });
+  }
+
+  return waarsch;
+}
+
+// ── Haal weer op ──
+async function haalWeer() {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,uv_index,is_day&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset&wind_speed_unit=ms&timezone=Europe/Amsterdam&forecast_days=7`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    const nu = new Date();
+    const huidigUur = nu.getHours();
+    const huidigIndex = huidigUur;
+
+    const temp = Math.round(data.current.temperature_2m);
+    const gevoels = Math.round(data.current.apparent_temperature);
+    const vochtigheid = data.current.relative_humidity_2m;
+    const windMS = data.current.wind_speed_10m;
+    const windKMH = Math.round(windMS * 3.6);
+    const windDir = data.current.wind_direction_10m;
+    const windStoot = data.current.wind_gusts_10m;
+    const windStootKMH = Math.round(windStoot * 3.6);
+    const uvIndex = Math.round(data.current.uv_index);
+    const weerCode = data.current.weather_code;
+    const isDay = data.current.is_day;
+    const richting = windRichting(windDir);
+    const bf = windBeaufort(windMS);
+
+    // Zonsopkomst/ondergang
+    const opkomst = new Date(data.daily.sunrise[0]).toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+    const ondergang = new Date(data.daily.sunset[0]).toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+
+    // Kitesurf advies
+    const kite = kiteAdvies(windMS, windStoot, richting);
+
+    // Waarschuwingen
+    const waarsch = huisWaarschuwingen(data, huidigIndex);
+
+    // Uurlijkse data
+    const uurData = [];
+    for(let i = huidigIndex; i < Math.min(huidigIndex+12, 24); i++) {
+      uurData.push({
+        tijd: i === huidigIndex ? 'Nu' : `${String(i).padStart(2,'0')}:00`,
+        temp: Math.round(data.hourly.temperature_2m[i]),
+        ico: weerIcon(data.hourly.weather_code[i], i >= 6 && i <= 21),
+        regen: data.hourly.precipitation_probability[i],
+        isNow: i === huidigIndex
+      });
+    }
+
+    // 7 dagen
+    const dagNamen = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+    const vandaag = nu.getDay();
+    const minTemp = Math.min(...data.daily.temperature_2m_min);
+    const maxTemp = Math.max(...data.daily.temperature_2m_max);
+
+    // Render
+    renderWeer({
+      temp, gevoels, vochtigheid, windKMH, windStootKMH, windDir, richting, bf,
+      uvIndex, weerCode, isDay, opkomst, ondergang, kite, waarsch, uurData,
+      daily: data.daily, dagNamen, vandaag, minTemp, maxTemp, nu
+    });
+
+  } catch(e) {
+    document.getElementById('content').innerHTML = `
+      <div class="loading">❌ Kon weer niet ophalen. Controleer internet verbinding.</div>
+    `;
+  }
+}
+
+
+async function haalBuienradar() {
+  try {
+    // Buienradar neerslagdata voor de komende 2 uur (5-minuten intervallen)
+    const resp = await fetch('https://gpsgadget.buienradar.nl/data/raintext?lat=52.6567&lon=5.1833');
+    const text = await resp.text();
+
+    // Parse de data: elke regel = "waarde|tijd"
+    // Waarde 0 = geen regen, hoger = meer regen
+    const regels = text.trim().split('\n');
+    const data = regels.map(r => {
+      const [waarde, tijd] = r.split('|');
+      const mm = waarde ? (Math.pow(10, (parseInt(waarde) - 109) / 32)).toFixed(2) : 0;
+      return { waarde: parseInt(waarde) || 0, mm: parseFloat(mm), tijd: tijd ? tijd.trim() : '' };
+    });
+
+    return data;
+  } catch(e) {
+    return null;
+  }
+}
+
+async function droogeMomenten() {
+  const buienData = await haalBuienradar();
+
+  if(!buienData || buienData.length === 0) {
+    return '<div class="droog-advies matig">⚠️ Neerslagdata tijdelijk niet beschikbaar.</div>';
+  }
+
+  // Analyseer de data
+  const nuRegen = buienData[0].mm > 0.1;
+  const eersteRegen = buienData.findIndex((d, i) => i > 0 && d.mm > 0.1);
+  const eersteDroog = buienData.findIndex((d, i) => i > 0 && d.mm <= 0.1);
+
+  let advies = '';
+  let adviesKlasse = '';
+
+  if(!nuRegen) {
+    if(eersteRegen === -1) {
+      advies = '✅ De komende 2 uur blijft het droog! Prima moment voor boodschappen of een wandeling.';
+      adviesKlasse = 'goed';
+    } else {
+      const regenTijd = buienData[eersteRegen].tijd;
+      advies = `✅ Nu droog — doe uw boodschappen nu! Regen verwacht om ${regenTijd}.`;
+      adviesKlasse = 'goed';
+    }
+  } else {
+    if(eersteDroog !== -1) {
+      const droogTijd = buienData[eersteDroog].tijd;
+      advies = `🌧️ Het regent nu. Wacht tot ${droogTijd} — dan droog genoeg voor boodschappen.`;
+      adviesKlasse = 'slecht';
+    } else {
+      advies = '🌧️ De komende 2 uur blijft het regenen. Pak een regenjas of wacht even.';
+      adviesKlasse = 'slecht';
+    }
+  }
+
+  // Tijdlijn van de komende 2 uur per 5 minuten
+  const tijdlijn = buienData.map((d, i) => {
+    const intensiteit = d.mm;
+    let klasse, ico, label;
+    if(intensiteit <= 0.1) { klasse = 'droog'; ico = '✅'; label = 'Droog'; }
+    else if(intensiteit < 1.0) { klasse = 'kans'; ico = '🌦️'; label = 'Licht'; }
+    else if(intensiteit < 2.5) { klasse = 'regen'; ico = '🌧️'; label = 'Matig'; }
+    else { klasse = 'regen'; ico = '⛈️'; label = 'Zwaar'; }
+
+    return `
+      <div class="droog-blok ${i===0?'now':''}">
+        <div class="droog-blok-bar ${klasse}">${ico}</div>
+        <div class="droog-blok-tijd">${d.tijd}</div>
+        <div class="droog-blok-kans">${label}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="droog-advies ${adviesKlasse}">${advies}</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px;">📡 Live neerslagdata van Buienradar · Komende 2 uur · 5-minuten intervallen</div>
+    <div class="droog-tijdlijn">${tijdlijn}</div>
+  `;
+}
+
+function renderWeer(d) {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title"><span>🌤️</span> Weer Schellinkhout</div>
+        <div class="page-sub">Hyperlokaaal weer voor uw woning · IJsselmeer regio</div>
+      </div>
+      <div class="update-time">Bijgewerkt: ${d.nu.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+
+    <!-- Huidig weer -->
+    <div class="weer-huidig">
+      <div class="weer-main">
+        <div class="weer-icon">${weerIcon(d.weerCode, d.isDay)}</div>
+        <div>
+          <div class="weer-temp">${d.temp}°<span style="font-size:24px;color:var(--muted)">C</span></div>
+          <div class="weer-desc">${weerOmschrijving(d.weerCode)} · Voelt als ${d.gevoels}°C</div>
+          <div class="weer-loc">📍 Schellinkhout · IJsselmeer</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">💨 Wind</div>
+        <div class="stat-val">${d.windKMH}<span class="stat-unit">km/u</span></div>
+        <div class="stat-sub">${d.richting} · Bft ${d.bf} · Stoten ${d.windStootKMH} km/u</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">💧 Luchtvochtigheid</div>
+        <div class="stat-val">${d.vochtigheid}<span class="stat-unit">%</span></div>
+        <div class="stat-sub">${d.vochtigheid > 70 ? 'Hoog — ventileer het huis' : 'Normaal'}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">☀️ UV Index</div>
+        <div class="stat-val" style="color:${d.uvIndex <= 2 ? 'var(--accent2)' : d.uvIndex <= 5 ? 'var(--accent)' : 'var(--warn)'}">${d.uvIndex}</div>
+        <div class="stat-sub">${d.uvIndex <= 2 ? 'Laag' : d.uvIndex <= 5 ? 'Matig — zonnebrand' : d.uvIndex <= 7 ? 'Hoog' : 'Zeer hoog'}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">🌅 Zon</div>
+        <div style="font-size:14px;font-weight:600;margin-top:4px">${d.opkomst} → ${d.ondergang}</div>
+        <div class="stat-sub">op- en ondergang</div>
+      </div>
+    </div>
+
+    <!-- Neerslagkaart -->
+    <div class="card">
+      <div class="card-title">📡 Neerslagkaart · Live radar</div>
+      <div id="radar-map"></div>
+      <div class="radar-controls">
+        <button class="radar-btn on" onclick="setRadarMode('nu')">Nu</button>
+        <button class="radar-btn" onclick="setRadarMode('1uur')">+1 uur</button>
+        <button class="radar-btn" onclick="setRadarMode('2uur')">+2 uur</button>
+        <button class="radar-btn" onclick="setRadarMode('3uur')">+3 uur</button>
+        <span class="radar-tijd" id="radar-tijd-lbl">Live neerslagkaart</span>
+      </div>
+      <div class="radar-legenda">
+        <span style="font-size:10px;color:var(--muted);margin-right:4px">Neerslag:</span>
+        <div class="radar-legenda-item"><div class="radar-kleur" style="background:#7af5f5"></div> Licht</div>
+        <div class="radar-legenda-item"><div class="radar-kleur" style="background:#00b4ff"></div> Matig</div>
+        <div class="radar-legenda-item"><div class="radar-kleur" style="background:#0000ff"></div> Zwaar</div>
+        <div class="radar-legenda-item"><div class="radar-kleur" style="background:#ff0000"></div> Extreem</div>
+      </div>
+    </div>
+
+    <!-- Huis waarschuwingen -->
+    <div class="card">
+      <div class="card-title">🏠 Weer & uw woning</div>
+      ${d.waarsch.map(w => `
+        <div class="waarsch ${w.type}">
+          <div class="waarsch-ico">${w.ico}</div>
+          <div>
+            <div class="waarsch-titel">${w.titel}</div>
+            <div class="waarsch-sub">${w.sub}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- Kitesurfen -->
+    <div class="card">
+      <div class="card-title">🪁 Kitesurfadvies · IJsselmeer bij Schellinkhout · 80kg rijder</div>
+      <div class="kite-header">
+        <div class="kite-status">
+          <div class="kite-badge ${d.kite.status}">
+            ${d.kite.status === 'gaat' ? '✅' : d.kite.status === 'matig' ? '⚠️' : '❌'}
+            ${d.kite.statusTekst}
+          </div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6">${d.kite.tip}</div>
+          ${d.kite.isGunstigeRichting ?
+            `<div style="margin-top:8px;font-size:11px;color:var(--accent2)">✓ Wind uit ${d.kite.richting} — gunstige richting voor het IJsselmeer</div>` :
+            `<div style="margin-top:8px;font-size:11px;color:var(--orange)">⚠ Wind uit ${d.kite.richting} — minder ideale richting voor het IJsselmeer</div>`
+          }
+        </div>
+        ${d.kite.maat !== '—' ? `
+          <div class="kite-grootte">
+            <div class="kite-m2">${d.kite.maat}</div>
+            <div class="kite-m2-lbl">m² kite</div>
+          </div>
+        ` : ''}
+      </div>
+      <div class="kite-details">
+        <div class="kite-detail">
+          <div class="kd-lbl">Wind</div>
+          <div class="kd-val">${d.kite.knopen} kn</div>
+        </div>
+        <div class="kite-detail">
+          <div class="kd-lbl">Beaufort</div>
+          <div class="kd-val">Bft ${d.kite.bf}</div>
+        </div>
+        <div class="kite-detail">
+          <div class="kd-lbl">Stoten</div>
+          <div class="kd-val">${d.kite.stoten} kn</div>
+        </div>
+      </div>
+      <div class="kite-tip">
+        <strong>Tip:</strong> Het IJsselmeer bij Schellinkhout heeft weinig stroom en relatief plat water.
+        Ideale windrichtingen zijn W, WZW, ZW en NW. Bij oostenwind is het water ruwer door de grotere fetch.
+        Controleer altijd de lokale vliegers op het water voor je gaat.
+      </div>
+    </div>
+
+
+    <!-- Droge momenten -->
+    <div class="card">
+      <div class="card-title">🛒 Wanneer droog naar buiten?</div>
+      <div id="droog-container"><div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div> Buienradar laden...</div></div>
+    </div>
+
+    <!-- Uurlijks -->
+    <div class="card">
+      <div class="card-title">Uurlijkse verwachting</div>
+      <div class="uur-scroll">
+        ${d.uurData.map(u => `
+          <div class="uur-item ${u.isNow ? 'now' : ''}">
+            <div class="uur-tijd">${u.tijd}</div>
+            <div class="uur-ico">${u.ico}</div>
+            <div class="uur-temp">${u.temp}°</div>
+            <div class="uur-regen">💧 ${u.regen}%</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- 7 dagen -->
+    <div class="card">
+      <div class="card-title">7-daagse vooruitzichten</div>
+      ${d.daily.weather_code.map((code, i) => {
+        const datum = new Date();
+        datum.setDate(datum.getDate() + i);
+        const dagNaam = i === 0 ? 'Vandaag' : i === 1 ? 'Morgen' : d.dagNamen[datum.getDay()];
+        const max = Math.round(d.daily.temperature_2m_max[i]);
+        const min = Math.round(d.daily.temperature_2m_min[i]);
+        const regenKans = d.daily.precipitation_probability_max[i];
+        const barBreedte = ((max - d.minTemp) / (d.maxTemp - d.minTemp)) * 70;
+        const barStart = ((min - d.minTemp) / (d.maxTemp - d.minTemp)) * 30;
+        return `
+          <div class="dag-rij">
+            <div class="dag-naam ${i===0?'today':''}">${dagNaam}</div>
+            <div class="dag-ico">${weerIcon(code, true)}</div>
+            <div class="dag-bar">
+              <div class="dag-bar-fill" style="left:${barStart}%;width:${barBreedte}%"></div>
+            </div>
+            <div class="dag-temps"><span class="dag-min">${min}°</span>${max}°</div>
+            <div class="dag-regen">💧${regenKans}%</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+  `;
+
+  // Laad Buienradar data
+  setTimeout(async () => {
+    const container = document.getElementById('droog-container');
+    if(container) container.innerHTML = await droogeMomenten();
+  }, 100);
+}
+
+haalWeer();
+setInterval(haalWeer, 5 * 60 * 1000); // Elke 5 minuten
+// ── Neerslagkaart met RainViewer ──
+let radarMap = null;
+let radarLayer = null;
+let radarFrames = [];
+let radarModus = 'nu';
+
+async function initRadar() {
+  if(radarMap) return; // al geinitialiseerd
+
+  // Init Leaflet kaart gecentreerd op Schellinkhout
+  radarMap = L.map('radar-map', {
+    center: [52.6567, 5.1833],
+    zoom: 7,
+    minZoom: 5,
+    maxZoom: 10,
+    zoomControl: true,
+    attributionControl: false
+  });
+
+  // Donkere achtergrondkaart
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 10,
+    minZoom: 5,
+  }).addTo(radarMap);
+
+  // Markeer Schellinkhout
+  L.circleMarker([52.6567, 5.1833], {
+    radius: 6,
+    fillColor: '#e8b84b',
+    color: '#fff',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.9
+  }).bindPopup('<b>Schellinkhout</b><br>Uw woning').addTo(radarMap);
+
+  // Haal RainViewer frames op
+  await laadRadarFrames();
+
+  // Ververs elke 5 minuten
+  setInterval(laadRadarFrames, 5 * 60 * 1000);
+}
+
+async function laadRadarFrames() {
+  try {
+    const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const data = await resp.json();
+    radarFrames = data;
+    toonRadarFrame(radarModus);
+  } catch(e) {
+    console.log('Radar fout:', e);
+  }
+}
+
+function toonRadarFrame(modus) {
+  radarModus = modus;
+
+  // Update knoppen
+  document.querySelectorAll('.radar-btn').forEach(b => b.classList.remove('on'));
+  event && event.target && event.target.classList.add('on');
+
+  if(!radarFrames || !radarMap) return;
+
+  // Verwijder oude laag
+  if(radarLayer) radarMap.removeLayer(radarLayer);
+
+  let path, labelTekst;
+  const nu = new Date();
+
+  if(modus === 'nu') {
+    // Laatste beschikbare radar frame (meest recent)
+    const frames = radarFrames.radar?.past;
+    if(frames && frames.length > 0) {
+      path = frames[frames.length - 1].path;
+      labelTekst = 'Live · ' + nu.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+    }
+  } else {
+    // Voorspelling frames
+    const frames = radarFrames.radar?.nowcast;
+    if(frames && frames.length > 0) {
+      const index = modus === '1uur' ? Math.min(11, frames.length-1) :
+                    modus === '2uur' ? Math.min(23, frames.length-1) :
+                    Math.min(35, frames.length-1);
+      path = frames[Math.min(index, frames.length-1)].path;
+      const voorspelTijd = new Date(nu.getTime() + (modus === '1uur' ? 60 : modus === '2uur' ? 120 : 180) * 60000);
+      labelTekst = 'Voorspelling · ' + voorspelTijd.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+    }
+  }
+
+  if(path) {
+    const tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
+    radarLayer = L.tileLayer(tileUrl, {
+      opacity: 0.7,
+      maxZoom: 10,
+      minZoom: 5,
+      tileSize: 256,
+    }).addTo(radarMap);
+
+    document.getElementById('radar-tijd-lbl').textContent = labelTekst || '';
+  }
+}
+
+function setRadarMode(modus) {
+  document.querySelectorAll('.radar-btn').forEach(b => {
+    b.classList.toggle('on', b.textContent.toLowerCase().includes(modus === 'nu' ? 'nu' : modus));
+  });
+  toonRadarFrame(modus);
+}
+
+// Initialiseer radar na laden pagina
+setTimeout(initRadar, 500);
+
+// Buienradar elke 2 minuten verversen
+setInterval(async () => {
+  const container = document.getElementById('droog-container');
+  if(container) container.innerHTML = await droogeMomenten();
+}, 2 * 60 * 1000);
+</script>
+</body>
+</html>

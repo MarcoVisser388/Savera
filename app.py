@@ -8,25 +8,6 @@ import json
 import threading
 import requests as req
 
-
-@app.route('/api/radar/<path:tile_path>')
-def radar_proxy(tile_path):
-    """Proxy voor KNMI WMS radar tiles met API key"""
-    knmi_url = f"https://api.dataplatform.knmi.nl/wms/adaguc-server"
-    params = dict(request.args)
-    params['DATASET'] = 'radar_reflectivity_composites'
-
-    try:
-        resp = req.get(
-            knmi_url,
-            params=params,
-            headers={
-                'Authorization': 'eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI5YWUzZDZlYTIxZDQ4MWVhODkzNTIzODVjMzU1ZWQ2IiwiaCI6Im11cm11cjEyOCJ9'},
-            timeout=10
-        )
-        return resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'image/png')}
-    except Exception as e:
-        return str(e), 500
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 
@@ -93,23 +74,78 @@ def genereer_nep_data():
 
 
 # ── Routes ──────────────────────────────────────────
-@app.route('/weer')
-def weer():
-    return render_template('weer.html')
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
+@app.route('/water')
+def water():
+    return render_template('water.html')
+
+@app.route('/api/energie/live')
+def energie_live():
+    try:
+        response = req.get(config.P1_API_URL, timeout=5)
+        data = response.json()
+
+        active_power_w = data.get("active_power_w", 0)
+        export_kwh = data.get("total_power_export_kwh", 0)
+        import_kwh = data.get("total_power_import_kwh", 0)
+
+        kosten_per_uur = round((active_power_w / 1000) * config.STROOM_PRIJS_PER_KWH, 4)
+
+        return jsonify({
+            "active_power_w": active_power_w,
+            "active_power_l1_w": data.get("active_power_l1_w", 0),
+            "active_power_l2_w": data.get("active_power_l2_w", 0),
+            "active_power_l3_w": data.get("active_power_l3_w", 0),
+            "total_power_import_kwh": import_kwh,
+            "total_power_export_kwh": export_kwh,
+            "kosten_per_uur": kosten_per_uur,
+            "timestamp": datetime.now().strftime("%H:%M:%S")
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+@app.route('/weer')
+def weer():
+    return render_template('weer.html')
+
+
 @app.route('/api/watermeter/live')
 def watermeter_live():
-    liters_per_minuut = round(random.uniform(0.5, 3.0), 2)
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT timestamp, liters, liters_per_minuut
+        FROM watermeter
+        ORDER BY timestamp DESC
+        LIMIT 1
+    ''')
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        return jsonify({
+            'liters_per_minuut': 0,
+            'liters_per_uur': 0,
+            'kosten_per_uur': 0,
+            'timestamp': datetime.now().strftime('%H:%M:%S')
+        })
+
+    liters_per_minuut = row['liters_per_minuut']
+
     return jsonify({
-        'liters_per_minuut': liters_per_minuut,
+        'liters_per_minuut': round(liters_per_minuut, 2),
         'liters_per_uur': round(liters_per_minuut * 60, 2),
         'kosten_per_uur': round((liters_per_minuut * 60 / 1000) * config.WATER_PRIJS_PER_M3, 4),
-        'timestamp': datetime.now().strftime('%H:%M:%S')
+        'timestamp': row['timestamp']
     })
 
 
@@ -158,9 +194,25 @@ def watermeter_week():
         'kosten': kosten
     })
 
-@app.route('/water')
-def water():
-    return render_template('water.html')
+
+@app.route('/api/radar/tiles')
+def radar_proxy():
+    """Proxy voor KNMI WMS radar tiles met API key"""
+    knmi_url = 'https://api.dataplatform.knmi.nl/wms/adaguc-server'
+    params = dict(request.args)
+    params['DATASET'] = 'radar_reflectivity_composites'
+
+    try:
+        resp = req.get(
+            knmi_url,
+            params=params,
+            headers={'Authorization': 'eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI5YWUzZDZlYTIxZDQ4MWVhODkzNTIzODVjMzU1ZWQ2IiwiaCI6Im11cm11cjEyOCJ9'},
+            timeout=10
+        )
+        return resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'image/png')}
+    except Exception as e:
+        return str(e), 500
+
 
 # ── MQTT ──────────────────────────────────────────
 def on_mqtt_message(client, userdata, message):
@@ -182,11 +234,25 @@ def on_mqtt_message(client, userdata, message):
         print(f"MQTT fout: {e}")
 
 
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("MQTT verbonden!")
+        client.subscribe("savera/watermeter")
+    else:
+        print(f"MQTT verbinding mislukt: {rc}")
+
+
 def start_mqtt():
+    print("MQTT thread gestart...")
+    print(f"Verbinden met MQTT broker: {config.MQTT_BROKER}:{config.MQTT_PORT}")
+
     client = mqtt_client.Client()
+
+    client.on_connect = on_connect
     client.on_message = on_mqtt_message
+
     client.connect(config.MQTT_BROKER, config.MQTT_PORT, 60)
-    client.subscribe("savera/watermeter")
+
     client.loop_forever()
 
 
@@ -194,9 +260,10 @@ def start_mqtt_thread():
     thread = threading.Thread(target=start_mqtt, daemon=True)
     thread.start()
 
+
 # ── Start ──────────────────────────────────────────
 if __name__ == '__main__':
     init_db()
-    genereer_nep_data()
+    # genereer_nep_data()
     start_mqtt_thread()
     app.run(debug=config.DEBUG, host='0.0.0.0', port=5000)

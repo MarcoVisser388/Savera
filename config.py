@@ -18,3 +18,11 @@ ENERGIE_PRIJS_PER_KWH = 0.32
 # MQTT
 MQTT_BROKER = '192.168.1.90'  # jouw Pi IP
 MQTT_PORT = 1883
+
+# HomeWizard P1
+P1_IP = "192.168.1.95"
+P1_API_URL = f"http://{P1_IP}/api/v1/data"
+
+# Elektra prijzen
+STROOM_PRIJS_PER_KWH = 0.32
+TERUGLEVER_PRIJS_PER_KWH = 0.08

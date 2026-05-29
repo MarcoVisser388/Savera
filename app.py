@@ -89,6 +89,9 @@ def water():
 @app.route('/api/energie/history')
 def energie_history():
 
+    minutes = int(request.args.get("minutes", 3))
+    limit = minutes * 60
+
     conn = sqlite3.connect("database/savera.db")
     cursor = conn.cursor()
 
@@ -96,8 +99,8 @@ def energie_history():
         SELECT timestamp, active_power_w
         FROM energie_data
         ORDER BY id DESC
-        LIMIT 180
-    """)
+        LIMIT ?
+    """, (limit,))
 
     rows = cursor.fetchall()
     conn.close()
@@ -244,6 +247,108 @@ def energie_vandaag():
         "export_vandaag_kwh": round(export_vandaag, 3),
         "netto_vandaag_kwh": round(netto_kwh, 3),
         "netto_euro": round(netto_euro, 2)
+    })
+
+@app.route('/api/energie/live-insights')
+def energie_live_insights():
+
+    conn = sqlite3.connect("database/savera.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            MAX(active_power_w) as piek,
+            AVG(active_power_w) as gemiddeld,
+            MIN(active_power_w) as laagste
+        FROM energie_data
+        WHERE DATE(timestamp) = DATE('now')
+    """)
+
+    stats = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT
+            AVG(ABS(active_power_l1_w)) as l1,
+            AVG(ABS(active_power_l2_w)) as l2,
+            AVG(ABS(active_power_l3_w)) as l3
+        FROM energie_data
+        WHERE DATE(timestamp) = DATE('now')
+    """)
+
+    fases = cursor.fetchone()
+
+    fase_waardes = {
+        "L1": fases["l1"] or 0,
+        "L2": fases["l2"] or 0,
+        "L3": fases["l3"] or 0
+    }
+
+    dominante_fase = max(
+        fase_waardes,
+        key=fase_waardes.get
+    )
+
+    conn.close()
+
+    return jsonify({
+        "piek_vandaag": round(stats["piek"] or 0),
+        "gemiddelde_vandaag": round(stats["gemiddeld"] or 0),
+        "laagste_vandaag": round(stats["laagste"] or 0),
+        "dominante_fase": dominante_fase
+    })
+
+@app.route('/api/energie/realtime-insights')
+def energie_realtime_insights():
+
+    conn = sqlite3.connect("database/savera.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM energie_data
+        ORDER BY id DESC
+        LIMIT 300
+    """)
+
+    rows = cursor.fetchall()
+
+    if not rows:
+        return jsonify({
+            "gemiddelde": 0,
+            "piek": 0,
+            "dominante_fase": "L1",
+            "dominante_pct": 0
+        })
+
+    vermogens = [r["active_power_w"] for r in rows]
+
+    gemiddelde = sum(vermogens) / len(vermogens)
+    piek = max(abs(v) for v in vermogens)
+
+    l1 = sum(abs(r["active_power_l1_w"] or 0) for r in rows)
+    l2 = sum(abs(r["active_power_l2_w"] or 0) for r in rows)
+    l3 = sum(abs(r["active_power_l3_w"] or 0) for r in rows)
+
+    fases = {
+        "L1": l1,
+        "L2": l2,
+        "L3": l3
+    }
+
+    dominante_fase = max(fases, key=fases.get)
+
+    dominante_watt = max(fases.values()) / len(rows)
+    dominante_pct = round((dominante_watt / 5750) * 100)
+
+    conn.close()
+
+    return jsonify({
+        "gemiddelde": round(gemiddelde),
+        "piek": round(piek),
+        "dominante_fase": dominante_fase,
+        "dominante_pct": dominante_pct
     })
 
 @app.route('/weer')

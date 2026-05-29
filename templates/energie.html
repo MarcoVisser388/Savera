@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Savera Energie</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:#141414;
+  --bg2:#1a1a1a;
+  --bg3:#222;
+  --accent:#e8b84b;
+  --blue:#4b9fe8;
+  --green:#4caf82;
+  --warn:#e05c5c;
+  --orange:#ff9f43;
+  --text:#fff;
+  --muted:rgba(255,255,255,.35);
+  --border:rgba(255,255,255,.07);
+}
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  height:100vh;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:52px 1fr;
+}
+
+header {
+  background:var(--bg2);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  border-bottom:1px solid var(--border);
+}
+
+.logo { font-size:15px; font-weight:700; letter-spacing:3px; }
+.logo span { color:var(--accent); }
+
+.hright { display:flex; align-items:center; gap:14px; }
+
+.live-pill {
+  background:rgba(255,255,255,.07);
+  border-radius:20px;
+  padding:5px 12px;
+  font-size:11px;
+  color:var(--muted);
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+
+.ldot {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--green);
+  animation:blink 2s infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.main {
+  display:grid;
+  grid-template-columns:52px 1fr;
+  height:100%;
+  overflow:hidden;
+}
+
+.leftnav {
+  background:var(--bg2);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:14px 0;
+  gap:6px;
+  border-right:1px solid var(--border);
+}
+
+.nico {
+  width:36px;
+  height:36px;
+  border-radius:9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  color:var(--muted);
+  cursor:pointer;
+  transition:.2s;
+}
+
+.nico:hover { color:var(--text); background:rgba(255,255,255,.06); }
+.nico.on { background:rgba(232,184,75,.12); color:var(--accent); }
+.spacer { flex:1; }
+
+.content {
+  overflow-y:auto;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+
+.page-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+
+.page-title {
+  font-size:20px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.page-sub {
+  font-size:12px;
+  color:var(--muted);
+  margin-top:3px;
+}
+
+.periode-tabs {
+  display:flex;
+  gap:8px;
+}
+
+.periode-btn {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--muted);
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:12px;
+  transition:.2s;
+}
+
+.periode-btn:hover {
+  color:var(--text);
+  border-color:rgba(255,255,255,.18);
+}
+
+.periode-btn.active {
+  background:rgba(232,184,75,.12);
+  border-color:rgba(232,184,75,.25);
+  color:var(--accent);
+}
+
+.stats-row {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+
+.stat-card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  transition:border-color .25s ease, box-shadow .25s ease;
+}
+
+.stat-card.positive {
+  border-color:rgba(76,175,130,.22);
+  box-shadow:0 0 24px rgba(76,175,130,.04);
+}
+
+.stat-card.negative {
+  border-color:rgba(224,92,92,.18);
+  box-shadow:0 0 24px rgba(224,92,92,.04);
+}
+
+.stat-label {
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:1px;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.stat-val {
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:-1px;
+  line-height:1;
+}
+
+.stat-val.blue { color:var(--blue); }
+.stat-val.green { color:var(--green); }
+.stat-val.warn { color:var(--warn); }
+.stat-val.orange { color:var(--orange); }
+
+.stat-unit {
+  font-size:12px;
+  color:var(--muted);
+  margin-top:3px;
+}
+
+.stat-change {
+  font-size:11px;
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+}
+
+.chart-card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:18px;
+}
+
+.chart-header {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:16px;
+}
+
+.chart-title {
+  font-size:14px;
+  font-weight:600;
+}
+
+.chart-insights {
+  margin-top:8px;
+  font-size:13px;
+  color:rgba(255,255,255,.55);
+}
+
+.chart-wrap {
+  height:280px;
+}
+
+.phase-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+
+.phase-card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+}
+
+.phase-top {
+  display:flex;
+  justify-content:space-between;
+  color:var(--muted);
+  font-size:11px;
+  margin-bottom:10px;
+}
+
+.phase-val {
+  font-size:24px;
+  font-weight:700;
+}
+
+.phase-val.green { color:var(--green); }
+.phase-val.blue { color:var(--blue); }
+
+.phase-bar {
+  height:10px;
+  background:var(--bg3);
+  border-radius:10px;
+  overflow:hidden;
+  margin-top:12px;
+}
+
+.phase-fill {
+  height:100%;
+  width:0%;
+  background:var(--accent);
+  border-radius:10px;
+  transition:width .4s ease, background .4s ease;
+}
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-thumb {
+  background:rgba(255,255,255,.07);
+  border-radius:2px;
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="logo">SAVE<span>RA</span></div>
+  <div class="hright">
+    <div class="live-pill"><div class="ldot"></div> Live · P1 actief</div>
+    <div id="clk" style="font-size:13px;color:var(--muted)">00:00</div>
+  </div>
+</header>
+
+<div class="main">
+  <nav class="leftnav">
+    <div class="nico" onclick="window.location.href='/'">🏠</div>
+    <div class="nico" onclick="window.location.href='/weer'">🌤️</div>
+    <div class="nico" onclick="window.location.href='/water'">💧</div>
+    <div class="nico on">⚡</div>
+    <div class="nico">🔥</div>
+    <div class="nico">🌡️</div>
+    <div class="spacer"></div>
+    <div class="nico">⚙️</div>
+  </nav>
+
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><span>⚡</span> Elektriciteit</div>
+        <div class="page-sub">Realtime P1-verbruik, teruglevering, fasebelasting en kosten</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card" id="liveCard">
+        <div class="stat-label" id="liveLabel">Live verbruik</div>
+        <div class="stat-val blue" id="liveWatt">--</div>
+        <div class="stat-unit">watt</div>
+        <div class="stat-change" id="liveKwh">-- kWh totaal afgenomen</div>
+      </div>
+
+      <div class="stat-card" id="kostenCard">
+        <div class="stat-label" id="kostenLabel">Kosten nu</div>
+        <div class="stat-val" id="kostenUur">--</div>
+        <div class="stat-unit">euro per uur</div>
+        <div class="stat-change" id="kostenSub">berekend met jouw stroomtarief</div>
+      </div>
+
+      <div class="stat-card" id="nettoCard">
+        <div class="stat-label">Netto vandaag</div>
+        <div class="stat-val green" id="nettoVandaag">--</div>
+        <div class="stat-unit">kWh</div>
+        <div class="stat-change" id="nettoEuro">--</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Laatste update</div>
+        <div class="stat-val" id="lastUpdate">--</div>
+        <div class="stat-unit">tijd</div>
+        <div class="stat-change">P1 API</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" id="chartTitle">Realtime verbruik · laatste 3 minuten</div>
+          <div class="chart-insights" id="chartInsights">
+            ⚡ Gem: -- W • 🔥 Piek: -- W • 🔌 Dominante fase: --
+          </div>
+        </div>
+
+        <div class="periode-tabs">
+          <button class="periode-btn active" data-range="3">3 min</button>
+          <button class="periode-btn" data-range="15">15 min</button>
+          <button class="periode-btn" data-range="60">1 uur</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="liveChart"></canvas>
+      </div>
+    </div>
+
+    <div class="phase-grid">
+      <div class="phase-card">
+        <div class="phase-top"><span>Fase L1</span><span id="l1State">live</span></div>
+        <div class="phase-val" id="l1">-- W</div>
+        <div class="phase-bar"><div class="phase-fill" id="l1bar"></div></div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-top"><span>Fase L2</span><span id="l2State">live</span></div>
+        <div class="phase-val" id="l2">-- W</div>
+        <div class="phase-bar"><div class="phase-fill" id="l2bar"></div></div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-top"><span>Fase L3</span><span id="l3State">live</span></div>
+        <div class="phase-val" id="l3">-- W</div>
+        <div class="phase-bar"><div class="phase-fill" id="l3bar"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clk').textContent =
+    String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}, 1000);
+
+let realtimeRange = 3;
+let dominanteFase = null;
+
+const ctx = document.getElementById('liveChart').getContext('2d');
+
+const liveChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Watt',
+      data: [],
+      borderColor: 'rgba(75,159,232,1)',
+      backgroundColor: 'rgba(75,159,232,.08)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2,
+      pointRadius: 0
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+
+    animation: {
+    duration: 1000,
+    easing: 'linear'
+  },
+
+    transitions: {
+      active: {
+        animation: {
+          duration: 0
+        }
+      }
+    },
+
+    interaction: { intersect: false, mode: 'index' },
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { color: 'rgba(255,255,255,.35)', maxTicksLimit: 8 },
+        grid: { color: 'rgba(255,255,255,.03)' }
+      },
+      y: {
+        ticks: { color: 'rgba(255,255,255,.35)' },
+        grid: { color: 'rgba(255,255,255,.03)' }
+      }
+    }
+  }
+});
+
+function formatTime(timestamp) {
+  if (!timestamp) return new Date().toLocaleTimeString('nl-NL');
+  if (timestamp.includes('T')) return timestamp.split('T')[1].slice(0, 8);
+  if (timestamp.includes(' ')) return timestamp.split(' ')[1].slice(0, 8);
+  return timestamp;
+}
+
+function formatSignedNumber(value, digits = 2) {
+  const n = Number(value) || 0;
+  const sign = n > 0 ? '+' : n < 0 ? '-' : '';
+  return sign + Math.abs(n).toFixed(digits);
+}
+
+function setBar(id, value) {
+  const nummer = Number(value) || 0;
+  const pct = Math.min(Math.abs(nummer) / 5750 * 100, 100);
+  const bar = document.getElementById(id);
+  bar.style.width = pct + '%';
+
+  if (nummer < 0) {
+    bar.style.background = 'linear-gradient(90deg,#4caf82,#00e676)';
+  } else if (pct < 40) {
+    bar.style.background = 'linear-gradient(90deg,#4caf82,#9ad96b)';
+  } else if (pct < 75) {
+    bar.style.background = 'linear-gradient(90deg,#d8b14a,#ff9f43)';
+  } else {
+    bar.style.background = 'linear-gradient(90deg,#ff7b54,#ff3b30)';
+  }
+}
+
+function setPhaseText(id, stateId, phaseName, value) {
+  const el = document.getElementById(id);
+  const state = document.getElementById(stateId);
+  const n = Number(value) || 0;
+
+  el.classList.remove('green', 'blue');
+
+  if (n < 0) {
+    el.textContent = Math.abs(n) + ' W';
+    el.classList.add('green');
+    state.textContent = dominanteFase === phaseName ? '⭐ dominant' : 'teruglevering';
+  } else {
+    el.textContent = n + ' W';
+    el.classList.add('blue');
+    state.textContent = dominanteFase === phaseName ? '⭐ dominant' : 'verbruik';
+  }
+}
+
+function updateEnergyCards(d) {
+  const watt = Number(d.active_power_w ?? 0);
+  const l1 = Number(d.active_power_l1_w ?? 0);
+  const l2 = Number(d.active_power_l2_w ?? 0);
+  const l3 = Number(d.active_power_l3_w ?? 0);
+  const importKwh = Number(d.total_power_import_kwh ?? 0);
+  const kosten = Number(d.kosten_per_uur ?? 0);
+
+  const liveCard = document.getElementById('liveCard');
+  const liveLabel = document.getElementById('liveLabel');
+  const liveValue = document.getElementById('liveWatt');
+  const kostenCard = document.getElementById('kostenCard');
+  const kostenLabel = document.getElementById('kostenLabel');
+  const kostenSub = document.getElementById('kostenSub');
+
+  liveCard.classList.remove('positive', 'negative');
+  kostenCard.classList.remove('positive', 'negative');
+  liveValue.classList.remove('blue', 'green', 'orange', 'warn');
+
+  if (watt < 0) {
+    liveCard.classList.add('positive');
+    kostenCard.classList.add('positive');
+    liveLabel.textContent = 'Live teruglevering';
+    liveValue.textContent = Math.abs(watt);
+    liveValue.classList.add('green');
+    kostenLabel.textContent = 'Opbrengst nu';
+    kostenSub.textContent = 'op basis van teruglevering';
+    document.getElementById('kostenUur').textContent = '€ ' + Math.abs(kosten).toFixed(4);
+  } else {
+    liveCard.classList.add('negative');
+    kostenCard.classList.add('negative');
+    liveLabel.textContent = 'Live verbruik';
+    liveValue.textContent = watt;
+    liveValue.classList.add('blue');
+    kostenLabel.textContent = 'Kosten nu';
+    kostenSub.textContent = 'berekend met jouw stroomtarief';
+    document.getElementById('kostenUur').textContent = '€ ' + kosten.toFixed(4);
+  }
+
+  document.getElementById('liveKwh').textContent = importKwh.toFixed(1) + ' kWh totaal afgenomen';
+  document.getElementById('lastUpdate').textContent = d.timestamp ?? '--';
+
+  setPhaseText('l1', 'l1State', 'L1', l1);
+  setPhaseText('l2', 'l2State', 'L2', l2);
+  setPhaseText('l3', 'l3State', 'L3', l3);
+
+  setBar('l1bar', l1);
+  setBar('l2bar', l2);
+  setBar('l3bar', l3);
+}
+
+async function updateVandaagCard() {
+  try {
+    const res = await fetch('/api/energie/vandaag');
+    const data = await res.json();
+
+    const netto = Number(data.netto_vandaag_kwh || 0);
+    const euro = Number(data.netto_euro || 0);
+    const card = document.getElementById('nettoCard');
+    const value = document.getElementById('nettoVandaag');
+    const sub = document.getElementById('nettoEuro');
+
+    card.classList.remove('positive', 'negative');
+    value.classList.remove('green', 'orange', 'warn');
+
+    value.textContent = formatSignedNumber(netto, 2);
+
+    if (netto >= 0) {
+      card.classList.add('positive');
+      value.classList.add('green');
+      sub.textContent = `☀️ €${Math.abs(euro).toFixed(2)} opbrengst vandaag`;
+    } else {
+      card.classList.add('negative');
+      value.classList.add('orange');
+      sub.textContent = `⚡ €${Math.abs(euro).toFixed(2)} kosten vandaag`;
+    }
+  } catch (e) {
+    console.warn('Vandaag API niet beschikbaar');
+  }
+}
+
+async function loadInitialHistory() {
+  try {
+    const res = await fetch(`/api/energie/history?minutes=${realtimeRange}`);
+    const history = await res.json();
+
+    if (!Array.isArray(history)) {
+      console.error('History API gaf geen lijst terug:', history);
+      return;
+    }
+
+    liveChart.data.labels = history.map(x => formatTime(x.timestamp));
+    liveChart.data.datasets[0].data = history.map(x => Number(x.active_power_w ?? 0));
+
+    const maxPoints = realtimeRange * 60;
+    const labels = liveChart.data.labels;
+    const data = liveChart.data.datasets[0].data;
+
+    while (labels.length > maxPoints) {
+      labels.shift();
+      data.shift();
+    }
+
+    liveChart.update();
+  } catch (e) {
+    console.warn('History API niet beschikbaar');
+  }
+}
+
+function smoothData(values, windowSize = 5) {
+  return values.map((_, index) => {
+    const start = Math.max(0, index - windowSize + 1);
+    const slice = values.slice(start, index + 1);
+    const avg = slice.reduce((sum, v) => sum + v, 0) / slice.length;
+    return Math.round(avg);
+  });
+}
+
+async function updateLiveSmooth() {
+  try {
+    const liveRes = await fetch('/api/energie/live');
+    const d = await liveRes.json();
+
+    if (d.error) {
+      console.error('API fout:', d.error);
+      return;
+    }
+
+    await updateRealtimeInsights();
+
+    updateEnergyCards(d);
+    updateVandaagCard();
+
+    const time = formatTime(d.timestamp);
+    const watt = Number(d.active_power_w ?? 0);
+
+    if (watt < 0) {
+      liveChart.data.datasets[0].borderColor = 'rgba(76,175,130,1)';
+      liveChart.data.datasets[0].backgroundColor = 'rgba(76,175,130,.10)';
+    } else {
+      liveChart.data.datasets[0].borderColor = 'rgba(75,159,232,1)';
+      liveChart.data.datasets[0].backgroundColor = 'rgba(75,159,232,.08)';
+    }
+
+    const labels = liveChart.data.labels;
+    const data = liveChart.data.datasets[0].data;
+
+    if (labels.length === 0 || labels[labels.length - 1] !== time) {
+      labels.push(time);
+      data.push(watt);
+    } else {
+      data[data.length - 1] = watt;
+    }
+
+    const maxPoints = realtimeRange * 60;
+
+    while (labels.length > maxPoints) {
+      labels.shift();
+      data.shift();
+    }
+
+    liveChart.update();
+  } catch (e) {
+    console.warn('Live API niet beschikbaar');
+  }
+}
+
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document
+      .querySelectorAll('[data-range]')
+      .forEach(b => b.classList.remove('active'));
+
+    btn.classList.add('active');
+
+    realtimeRange = Number(btn.dataset.range);
+
+    document.getElementById('chartTitle').textContent =
+      realtimeRange === 60
+        ? 'Realtime verbruik · laatste 1 uur'
+        : `Realtime verbruik · laatste ${realtimeRange} minuten`;
+
+    await loadInitialHistory();
+  });
+});
+
+async function updateRealtimeInsights() {
+  try {
+    const res = await fetch('/api/energie/realtime-insights');
+    const data = await res.json();
+
+    const gem = Number(data.gemiddelde || 0);
+    const status = gem < 0 ? 'teruglevering' : 'verbruik';
+
+    dominanteFase = data.dominante_fase;
+
+    document.getElementById('chartInsights').textContent =
+      `⚡ Gem: ${Math.abs(gem)} W ${status} • 🔥 Piek: ${data.piek} W • 🔌 Dominante fase: ${data.dominante_fase}`;
+  } catch (e) {
+    console.warn('Realtime insights API niet beschikbaar');
+  }
+}
+
+async function startEnergyDashboard() {
+  await loadInitialHistory();
+  await updateLiveSmooth();
+  setInterval(updateLiveSmooth, 1000);
+}
+
+startEnergyDashboard();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import paho.mqtt.client as mqtt_client
 import json
 import threading
 import requests as req
+from database import save_energie_data
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
@@ -83,6 +84,94 @@ def index():
 def water():
     return render_template('water.html')
 
+
+
+@app.route('/api/energie/history')
+def energie_history():
+
+    conn = sqlite3.connect("database/savera.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT timestamp, active_power_w
+        FROM energie_data
+        ORDER BY id DESC
+        LIMIT 180
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    rows.reverse()
+
+    return jsonify([
+        {
+            "timestamp": row[0],
+            "active_power_w": row[1]
+        }
+        for row in rows
+    ])
+
+@app.route('/api/energie/periode')
+def energie_periode():
+    periode_type = request.args.get("type", "dag")
+
+    conn = sqlite3.connect("database/savera.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if periode_type == "dag":
+        group_format = "%H:00"
+        since = "datetime('now', 'start of day')"
+    elif periode_type == "week":
+        group_format = "%Y-%m-%d"
+        since = "datetime('now', '-7 days')"
+    elif periode_type == "maand":
+        group_format = "%Y-%m-%d"
+        since = "datetime('now', '-30 days')"
+    else:
+        group_format = "%Y-%m"
+        since = "datetime('now', '-12 months')"
+
+    cursor.execute(f"""
+        SELECT
+            strftime('{group_format}', timestamp) as label,
+            MIN(total_import_kwh) as import_start,
+            MAX(total_import_kwh) as import_end,
+            MIN(total_export_kwh) as export_start,
+            MAX(total_export_kwh) as export_end,
+            AVG(active_power_w) as gemiddeld_w,
+            MAX(active_power_w) as piek_w
+        FROM energie_data
+        WHERE timestamp >= {since}
+        GROUP BY label
+        ORDER BY timestamp ASC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = []
+
+    for row in rows:
+        verbruik_kwh = (row["import_end"] or 0) - (row["import_start"] or 0)
+        teruglevering_kwh = (row["export_end"] or 0) - (row["export_start"] or 0)
+
+        kosten = verbruik_kwh * config.STROOM_PRIJS_PER_KWH
+        opbrengst = teruglevering_kwh * config.TERUGLEVER_PRIJS_PER_KWH
+
+        result.append({
+            "label": row["label"],
+            "verbruik_kwh": round(verbruik_kwh, 4),
+            "teruglevering_kwh": round(teruglevering_kwh, 4),
+            "kosten": round(kosten, 2),
+            "opbrengst": round(opbrengst, 2),
+            "gemiddeld_w": round(row["gemiddeld_w"] or 0, 1),
+            "piek_w": round(row["piek_w"] or 0, 1)
+        })
+
+    return jsonify(result)
+
 @app.route('/api/energie/live')
 def energie_live():
     try:
@@ -94,6 +183,16 @@ def energie_live():
         import_kwh = data.get("total_power_import_kwh", 0)
 
         kosten_per_uur = round((active_power_w / 1000) * config.STROOM_PRIJS_PER_KWH, 4)
+
+        save_energie_data(
+            active_power_w,
+            data.get("active_power_l1_w", 0),
+            data.get("active_power_l2_w", 0),
+            data.get("active_power_l3_w", 0),
+            import_kwh,
+            export_kwh,
+            kosten_per_uur
+        )
 
         return jsonify({
             "active_power_w": active_power_w,
@@ -110,6 +209,42 @@ def energie_live():
         return jsonify({
             "error": str(e)
         }), 500
+
+@app.route('/api/energie/vandaag')
+def energie_vandaag():
+    conn = sqlite3.connect("database/savera.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            MIN(total_import_kwh) as import_start,
+            MAX(total_import_kwh) as import_end,
+            MIN(total_export_kwh) as export_start,
+            MAX(total_export_kwh) as export_end
+        FROM energie_data
+        WHERE DATE(timestamp) = DATE('now')
+    """)
+
+    row = cursor.fetchone()
+    conn.close()
+
+    import_vandaag = (row["import_end"] or 0) - (row["import_start"] or 0)
+    export_vandaag = (row["export_end"] or 0) - (row["export_start"] or 0)
+
+    netto_kwh = export_vandaag - import_vandaag
+
+    if netto_kwh >= 0:
+        netto_euro = netto_kwh * config.TERUGLEVER_PRIJS_PER_KWH
+    else:
+        netto_euro = netto_kwh * config.STROOM_PRIJS_PER_KWH
+
+    return jsonify({
+        "import_vandaag_kwh": round(import_vandaag, 3),
+        "export_vandaag_kwh": round(export_vandaag, 3),
+        "netto_vandaag_kwh": round(netto_kwh, 3),
+        "netto_euro": round(netto_euro, 2)
+    })
 
 @app.route('/weer')
 def weer():
@@ -194,6 +329,9 @@ def watermeter_week():
         'kosten': kosten
     })
 
+@app.route('/energie')
+def energie():
+    return render_template('energie.html')
 
 @app.route('/api/radar/tiles')
 def radar_proxy():
@@ -264,6 +402,9 @@ def start_mqtt_thread():
 # ── Start ──────────────────────────────────────────
 if __name__ == '__main__':
     init_db()
+    from database import init_db as init_extra_db
+    init_extra_db()
+
     # genereer_nep_data()
     start_mqtt_thread()
     app.run(debug=config.DEBUG, host='0.0.0.0', port=5000)
